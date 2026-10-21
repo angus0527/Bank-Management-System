@@ -1,0 +1,18 @@
+# CLion / CMake 编译目录（绝不能提交，体积极大且因人而异）
+cmake-build-*/
+.cmake/
+
+# IDE 个人配置
+.idea/
+*.user
+
+# 运行时生成的数据文件与日志（防止冲突，计划书约定）
+data/
+*.log
+
+# 编译生成的二进制文件
+*.exe
+*.o
+*.obj
+*.a
+*.lib
