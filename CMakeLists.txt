@@ -15,4 +15,8 @@ add_executable(BankManage main.cpp
         include/Storage.h
         src/Logger.cpp
         include/Logger.h
+        src/CurrentAccount.cpp
+        include/CurrentAccount.h
+        src/Transaction.cpp
+        include/Transaction.h
 )
