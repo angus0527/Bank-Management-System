@@ -1,4 +1,21 @@
 # Bank-Management-System
+
+## 快速开始（第 2 周保底演示）
+
+环境：C++17，无需 Qt（核心层与控制台入口不依赖界面）。
+
+```bash
+# 方式一：CMake（CLion 直接打开工程即可）
+cmake -B build && cmake --build build && ./build/BankManage
+
+# 方式二：直接用 g++（Windows MinGW 示例，-static 免运行库 DLL 依赖）
+g++ -std=c++17 -static -Iinclude console_main.cpp src/*.cpp -o build/BankManage.exe
+```
+
+运行 `console_main` 将演示第 2 周里程碑全流程：登录 → 开户 → 存款 → 取款 →
+转账 → 异常提示（余额不足 / 金额非法 / 账户不存在 / 账户冻结）→ 活期结息 →
+存盘 → 重开读档验证数据完好。运行时数据写入 `data/`（已被 .gitignore 排除）。
+
 ## 一、目标定位（来自老师的三份课设文档）
 
 | 评分项 | 占比 | 对我们的启示 |
@@ -130,9 +147,13 @@ U|20001|C|张三|k3Pq|13800000000
 **accounts.txt**（每行一个账户，公共字段在前，各类型附加字段在后）
 ```
 A|账号|类型(C活期/F定期/X信用)|用户id|余额(分)|开户日期|年利率x10000|期限月|到期日|自动转存0/1|信用额度(分)|欠款(分)
-A|62001|C|20001|123450|2026-10-26|30|0|0|0|0|0
+A|62001|C|20001|123450|2026-10-26|35|0|0|0|0|0|2026-10-26
 A|62002|F|20001|1000000|2026-11-10|175|12|2027-11-10|1|0|0
 ```
+
+> 活期(C)账户在第 12 个公共字段后附加**第 13 字段"上次结息日"**（按日计息的起算点，
+> [contract] 变更：2026-10-29 由 A 补充；老数据无此字段时读档方默认取开户日，向后兼容）。
+> 交易类型码为英文 `DEP/WDR/TRF/INT`（见 transactions.txt 示例）。
 
 **transactions.txt**（每行一条流水）
 ```
@@ -178,9 +199,10 @@ T|1|2026-10-26 14:30:05|DEP|0|62001|50000|173450|开户存入
 
 ### 第 2 周（10/26–11/1）core 完成周 → 保底成果
 
-- A：[ ] `Date` 类 [ ] `Account` + `CurrentAccount` [ ] 存/取/转账逻辑 [ ] 活期计息 [ ] 异常体系
-- B：[ ] `User/Customer/Admin` + 登录验证 [ ] `TextFileStorage` 三文件读写 [ ] 流水记录 [ ] `Logger`
+- A：[x] `Date` 类 [x] `Account` + `CurrentAccount` [x] 存/取/转账逻辑 [x] 活期计息 [x] 异常体系（2026-10-29 完成，含按 README §2 红线对齐：金额 long long 分、异常体系、账号统一 long long）
+- B：[ ] `User/Customer/Admin` + 登录验证 [ ] `TextFileStorage` 三文件读写 [ ] 流水记录 [ ] `Logger`（User 体系/Storage 接口/Logger 骨架已于第 1 周完成）
 - [ ] 集成：`console_main.cpp` 跑通全流程：登录→开户→存→取→转账→结息→保存→**重开程序读档数据完好**
+  - 进展（A，10/29）：`console_main.cpp` 已跑通全流程，其中"保存→读档"用的是演示级临时代码，待 B 的 `TextFileStorage` 正式接入后勾选
 - [ ] 周记②
 
 **里程碑：不依赖界面、功能完整、数据可持久化的 core（答辩兜底版）。**

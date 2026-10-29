@@ -4,51 +4,57 @@
 
 #include "../include/Transaction.h"
 
-Transaction::Transaction(long long id, std::string datetime, TransactionType type, std::string fromAccountId,
-                         std::string toAccountId, double amount, double balanceSnapshot,
-                         std::string remark): id(id), datetime(datetime), type(type)
-                                              , fromAccountId(fromAccountId), toAccountId(toAccountId), amount(amount),
-                                              balanceSnapshot(balanceSnapshot), remark(remark) {
+#include <iostream>
+
+#include "../include/Account.h"
+
+Transaction::Transaction(long long id, std::string datetime, TransactionType type,
+                         long long fromAccountId, long long toAccountId, long long amount,
+                         long long balanceSnapshot, std::string remark)
+    : id(id), datetime(std::move(datetime)), type(type), fromAccountId(fromAccountId),
+      toAccountId(toAccountId), amount(amount), balanceSnapshot(balanceSnapshot),
+      remark(std::move(remark)) {
 }
 
-
-std::string Transaction::serialize() const {
-    std::string s;
+std::string Transaction::typeCode(TransactionType type) {
     switch (type) {
         case TransactionType::DEP:
-            s = "存款";
-            break;
+            return "DEP";
         case TransactionType::WDR:
-            s = "取款";
-            break;
+            return "WDR";
         case TransactionType::TRF:
-            s = "转账";
-            break;
+            return "TRF";
         case TransactionType::INT:
-            s = "结息";
-            break;
+            return "INT";
     }
-    std::stringstream ss;
-    ss << "T|" << id << "|" << datetime << "|" << s << "|" << fromAccountId << "|" << toAccountId << "|" << amount <<
-            "|" << balanceSnapshot << "|" << remark ;
-    return ss.str();
+    return "???";
+}
+
+TransactionType Transaction::typeFromCode(const std::string &code) {
+    if (code == "DEP") return TransactionType::DEP;
+    if (code == "WDR") return TransactionType::WDR;
+    if (code == "TRF") return TransactionType::TRF;
+    if (code == "INT") return TransactionType::INT;
+    throw std::invalid_argument("未知的交易类型码: \"" + code + "\"");
+}
+
+std::string Transaction::serialize() const {
+    return "T|" + std::to_string(id) + "|" + datetime + "|" + typeCode(type) + "|" +
+           std::to_string(fromAccountId) + "|" + std::to_string(toAccountId) + "|" +
+           std::to_string(amount) + "|" + std::to_string(balanceSnapshot) + "|" + remark;
 }
 
 void Transaction::display() const {
-    std::string s;
-    switch (type) {
-        case TransactionType::DEP:
-            s = "存款";
-            break;
-        case TransactionType::WDR:
-            s = "取款";
-            break;
-        case TransactionType::TRF:
-            s = "转账";
-            break;
-        case TransactionType::INT:
-            s = "结息";
-            break;
+    static const char *names[] = {"存款", "取款", "转账", "结息"};
+    std::cout << "[流水#" << id << "] " << datetime << " " << names[static_cast<int>(type) - 1]
+              << " " << formatMoney(amount) << " 元";
+    if (type == TransactionType::TRF) {
+        std::cout << "（" << fromAccountId << " → " << toAccountId << "）";
+    } else if (type == TransactionType::WDR) {
+        std::cout << "（账户 " << fromAccountId << "）";
+    } else {
+        std::cout << "（账户 " << toAccountId << "）";
     }
-    printf("[流水#%lld] %s %s %.2f 元，当前余额 %.2f 元\n",id, datetime.c_str(),s.c_str(), amount, balanceSnapshot);
+    std::cout << "，交易后余额 " << formatMoney(balanceSnapshot) << " 元"
+              << (remark.empty() ? "" : "，" + remark) << "\n";
 }

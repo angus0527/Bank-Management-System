@@ -1,6 +1,7 @@
 # CLion / CMake 编译目录（绝不能提交，体积极大且因人而异）
 cmake-build-*/
 .cmake/
+build/
 
 # IDE 个人配置
 .idea/
