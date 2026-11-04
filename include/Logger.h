@@ -1,7 +1,3 @@
-//
-// Created by huang on 2026/10/21.
-//
-
 #ifndef LOGGER_H
 #define LOGGER_H
 #include <string>

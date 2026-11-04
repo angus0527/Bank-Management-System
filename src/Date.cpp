@@ -1,7 +1,3 @@
-//
-// Created by angus on 2026/10/29.
-//
-
 #include "../include/Date.h"
 
 #include <chrono>

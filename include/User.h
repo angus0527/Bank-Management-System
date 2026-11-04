@@ -1,7 +1,3 @@
-//
-// Created by huang on 2026/10/21.
-//
-
 #ifndef USER_H
 #define USER_H
 #include <string>

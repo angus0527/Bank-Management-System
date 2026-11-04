@@ -1,7 +1,3 @@
-//
-// Created by angus on 2026/10/29.
-//
-
 #ifndef BANK_H
 #define BANK_H
 
@@ -15,7 +11,7 @@
 #include "Transaction.h"
 #include "User.h"
 
-// Bank 门面类：全部业务入口集中于此（README §2 约定 3），
+// Bank 门面类：全部业务入口集中于此，
 // UI/控制台层只调用 Bank 的公共接口，不直接碰 Account/User 内部字段。
 // core 层不依赖 storage/Qt：持久化由 Storage::load/save（B）负责，
 // 操作日志由调用方（UI/控制台）通过 Logger 记录。
@@ -23,7 +19,7 @@ class Bank {
     std::map<long long, std::unique_ptr<User>> users;
     std::map<long long, std::unique_ptr<Account>> accounts;
     std::vector<Transaction> transactions;
-    long long nextAccountId = 62001;     // 账号从 62001 起（README §5 示例）
+    long long nextAccountId = 62001;     // 账号从 62001 起
     long long nextTransactionId = 1;
 
     // 追加一条流水（余额快照由调用方在交易完成后传入）
@@ -31,11 +27,11 @@ class Bank {
                   long long balanceSnapshot, const std::string &remark);
 
 public:
-    // —— 鉴权（F01）——
+    // —— 鉴权——
     // 用户不存在或密码错误均抛 AuthFail（不区分提示，防试探）
     User *login(long long userId, const std::string &password);
 
-    // —— 账户业务（F02~F09）——
+    // —— 账户业务——
     // 开户：owner 必须是 Customer；initialDeposit ≥ 0；返回新账号
     long long openAccount(long long ownerId, long long initialDeposit,
                           const Date &openDate = Date::today());
@@ -48,26 +44,26 @@ public:
     void transfer(long long fromAccountId, long long toAccountId, long long amount,
                   const std::string &remark = "");
 
-    // 手动结息（F09），返回本次入账利息（分）；未到结息日返回 0
+    // 手动结息；未到结息日返回 0
     long long settleInterest(long long accountId);
 
-    // 管理员操作（Y01 预留）
+    // 管理员操作
     void freezeAccount(long long accountId);
 
     void unfreezeAccount(long long accountId);
 
-    // 销户（F03）：余额不为 0 抛 InvalidAmount
+    // 销户：余额不为 0 抛 InvalidAmount
     void closeAccount(long long accountId);
 
-    // —— 查询（F08）——
+    // —— 查询——
     // accountId 为 0 时返回全部流水；否则返回与该账户相关的流水（按时间顺序）
     std::vector<const Transaction *> queryTransactions(long long accountId = 0) const;
 
-    // —— 供 UI/控制台展示 ——
+// 供 UI/控制台展示
     Account *findAccount(long long accountId);       // 不存在抛 AccountNotFound
     User *findUser(long long userId);                // 不存在抛 AccountNotFound
 
-    // —— storage 层装载/读取接口（B 的 TextFileStorage 使用）——
+    // —— storage 层装载/读取接口——
     void addUser(std::unique_ptr<User> user);        // 装载已有用户（id 冲突抛 InvalidAmount）
     void addAccount(std::unique_ptr<Account> account); // 直接装载，不走业务校验
     void addTransaction(const Transaction &t);

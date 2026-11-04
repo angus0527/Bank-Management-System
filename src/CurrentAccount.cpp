@@ -1,7 +1,3 @@
-//
-// Created by huang on 2026/10/28.
-//
-
 #include "../include/CurrentAccount.h"
 
 // 开户时尚未结息，上次结息日即开户日

@@ -1,7 +1,3 @@
-//
-// Created by huang on 2026/10/28.
-//
-
 #include "../include/Transaction.h"
 
 #include <iostream>

@@ -1,7 +1,3 @@
-//
-// Created by huang on 2026/10/28.
-//
-
 #ifndef TRANSACTION_H
 #define TRANSACTION_H
 
@@ -12,7 +8,7 @@ enum class TransactionType {
     DEP = 1, WDR = 2, TRF = 3, INT = 4 // 存款，取款，转账，结息
 };
 
-// 一条交易流水（README §5 transactions.txt 格式）
+// 一条交易流水
 // 金额、快照一律 long long "分"；账号 0 表示"无"（如存款的付款方）
 class Transaction {
     long long id;

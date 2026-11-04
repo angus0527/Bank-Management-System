@@ -1,12 +1,8 @@
-//
-// Created by angus on 2026/10/29.
-//
-
 #include "../include/Bank.h"
 
 #include "CurrentAccount.h"
 
-// 活期默认年利率 0.35%（×10000 = 35），管理员利率管理（Y02）落地后可调
+// 活期默认年利率 0.35%（×10000 = 35），管理员利率管理落地后可调
 static constexpr long long kDefaultCurrentRateX10000 = 35;
 
 User *Bank::login(long long userId, const std::string &password) {

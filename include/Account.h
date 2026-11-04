@@ -19,11 +19,11 @@ enum class AccountType {
     FIXED = 3    // 定期存款账户
 };
 
-// 金额（分）→ "1234.56" 显示字符串（README §2 约定 1：金额一律用 long long 存"分"）
+// 金额（分）→ "1234.56" 显示字符串
 std::string formatMoney(long long cents);
 
-// 账户抽象基类（README §4.1）
-// 金额单位一律为"分"；业务失败不返回 bool，一律抛 exception.h 中的异常（约定 4）
+// 账户抽象基类
+// 金额单位一律为"分"；业务失败不返回 bool，一律抛 exception.h 中的异常
 class Account {
 protected:
     long long accountId;   // 账号（与 User 体系的 long long id 统一）
@@ -43,7 +43,7 @@ public:
 
     virtual void withdraw(long long amount);
 
-    // 计算截至 today 应计利息（分），不改余额；各账户类型多态实现（计划最大展示点）
+    // 计算截至 today 应计利息（分），不改余额；各账户类型多态实现
     virtual long long calcInterest(const Date &today) const = 0;
 
     // 结息：把应计利息并入余额，返回本次入账利息（分）
@@ -53,14 +53,14 @@ public:
 
     virtual AccountType getAccountType() const = 0;
 
-    // 将账户完整属性格式化为单行文本，用于保存到 accounts.txt（README §5 格式）
+    // 将账户完整属性格式化为单行文本，用于保存到 accounts.txt
     virtual std::string serialize() const = 0;
 
     void freeze();
 
     void unfreeze();
 
-    // 销户（F03：余额不为 0 抛 InvalidAmount，禁止销户）
+    // 销户
     void closeAccount();
 
     long long getAccountId() const { return accountId; }

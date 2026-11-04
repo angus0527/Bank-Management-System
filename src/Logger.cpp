@@ -1,7 +1,3 @@
-//
-// Created by huang on 2026/10/21.
-//
-
 #include "../include/Logger.h"
 
 std::string Logger::path = "data/logs.txt";

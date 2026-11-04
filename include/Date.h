@@ -1,14 +1,10 @@
-//
-// Created by angus on 2026/10/29.
-//
-
 #ifndef DATE_H
 #define DATE_H
 
 #include <string>
 
-// 日期工具类（README §2 设计约定 2：日期自己实现，不用第三方库）
-// 内部用"公历天数序号"（距 1970-01-01 的天数）实现加减与天数差，报告可写的设计点
+// 日期工具类
+// 内部用"公历天数序号"（距 1970-01-01 的天数）实现加减与天数差
 class Date {
     int year;
     int month;
@@ -31,7 +27,7 @@ public:
 
     static int daysInMonth(int y, int m);
 
-    // 距 1970-01-01 的天数（proleptic Gregorian，霍华德·辛纳特算法）
+    // 距 1970-01-01 的天数（proleptic Gregorian）
     long long toSerial() const;
 
     // 从 this 到 other 相隔几天（other 早于 this 为负数）
