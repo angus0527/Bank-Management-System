@@ -150,7 +150,8 @@ void TextFileStorage::loadAccounts(Bank &bank) {
             bool autoRenew = (f[9] == "1");
             long long curRate = (f.size() >= 13 && !f[12].empty()) ? std::stoll(f[12]) : bank.getCurrentRateX10000();
             auto fix = std::make_unique<FixedAccount>(id, ownerId, balance, openDate, termMonths,
-                                                      maturityDate, rate, autoRenew, curRate);
+                                                      rate, autoRenew, curRate);
+            fix->setMaturityDate(maturityDate);
             if (f.size() >= 14 && !f[13].empty()) {
                 fix->setStatus(parseStatusField(f[13]));
             }

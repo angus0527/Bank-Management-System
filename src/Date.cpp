@@ -22,7 +22,7 @@ int Date::daysInMonth(int y, int m) {
 }
 
 Date::Date(int y, int m, int d) : year(y), month(m), day(d) {
-    if (y < 1900 || y > 9999) {
+    if (y < 1900 || y > 2100) {
         throw std::invalid_argument("年份超出合理范围 [1900, 9999]");
     }
     if (m < 1 || m > 12) {
