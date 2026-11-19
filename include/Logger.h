@@ -1,12 +1,6 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <chrono>
-#include <ctime>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -14,9 +8,6 @@
 class Logger {
 private:
     static std::string path;   // 日志文件路径，默认为 "data/logs.txt"
-
-    // 获取当前本地时间，格式化为 "YYYY-MM-DD HH:MM:SS"
-    static std::string getCurrentTime();
 
 public:
     // 追加一条带时间戳的操作日志，若父级目录不存在会自动创建

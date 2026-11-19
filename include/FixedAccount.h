@@ -16,8 +16,8 @@ public:
                  const Date &openDate, int termMonths, long long rateX10000,
                  bool autoRenew = false, long long currentRateX10000 = 35);
 
-    void deposit(long long amount) override;
-    void withdraw(long long amount) override;
+    bool deposit(long long amount) override;
+    bool withdraw(long long amount) override;
     long long calcInterest(const Date &today) const override;
     long long settleInterest(const Date &today) override;
 

@@ -60,11 +60,13 @@ void TextFileStorage::saveUsers(const Bank &bank) const {
     std::ofstream out(usersPath);
     if (!out.is_open()) return;
 
-    for (const auto &[id, user] : bank.getUsers()) {
+    for (const auto &pair : bank.getUsers()) {
+        long long id = pair.first;
+        const User *user = pair.second.get();
         std::string role = (user->role() == "Admin") ? "A" : "C";
         std::string phone = "0000";
         if (role == "C") {
-            const auto *cust = dynamic_cast<const Customer *>(user.get());
+            const Customer *cust = dynamic_cast<const Customer *>(user);
             if (cust) {
                 phone = cust->getPhoneNumber();
             }
@@ -79,8 +81,8 @@ void TextFileStorage::saveAccounts(const Bank &bank) const {
     std::ofstream out(accountsPath);
     if (!out.is_open()) return;
 
-    for (const auto &[id, account] : bank.getAccounts()) {
-        out << account->serialize() << "\n";
+    for (const auto &pair : bank.getAccounts()) {
+        out << pair.second->serialize() << "\n";
     }
 }
 
@@ -174,12 +176,12 @@ void TextFileStorage::loadAccounts(Bank &bank) {
             bank.addAccount(std::move(acc));
             // 仅将未销户的账号回填进所属 Customer 的持卡列表，保证读档后名下卡号完整
             if (st != AccountStatus::CLOSED) {
-                try {
-                    User *u = bank.findUser(ownerId);
-                    if (auto *cust = dynamic_cast<Customer *>(u)) {
+                const auto &users = bank.getUsers();
+                auto it = users.find(ownerId);
+                if (it != users.end()) {
+                    if (Customer *cust = dynamic_cast<Customer *>(it->second.get())) {
                         cust->addAccount(id);
                     }
-                } catch (...) {
                 }
             }
         }

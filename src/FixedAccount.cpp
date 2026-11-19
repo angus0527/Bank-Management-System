@@ -4,31 +4,36 @@ FixedAccount::FixedAccount(long long id, long long ownerId, long long initialBal
                            const Date &openDate, int termMonths_, long long rate,
                            bool autoRenew_, long long currentRate)
     : Account(id, ownerId, initialBalance, openDate),
-      termMonths(termMonths_),
+      termMonths((termMonths_ == 3 || termMonths_ == 12 || termMonths_ == 36) ? termMonths_ : 12),
       rateX10000(rate),
       currentRateX10000(currentRate),
-      maturityDate(openDate.addMonths(termMonths_)),
+      maturityDate(openDate.addMonths(termMonths)),
       autoRenew(autoRenew_) {
-    if (termMonths != 3 && termMonths != 12 && termMonths != 36) {
-        throw InvalidAmount("定期存期只支持 3、12 或 36 个月");
+    if (termMonths_ != 3 && termMonths_ != 12 && termMonths_ != 36) {
+        std::cout << "提示：定期存期仅支持 3、12 或 36 个月，已默认按 12 个月处理。\n";
     }
 }
 
-void FixedAccount::deposit(long long /*amount*/) {
-    throw InvalidAmount("定期账户不支持中途追加存款");
+bool FixedAccount::deposit(long long /*amount*/) {
+    std::cout << "操作失败：定期账户不支持中途追加存款。\n";
+    return false;
 }
 
-void FixedAccount::withdraw(long long amount) {
+bool FixedAccount::withdraw(long long amount) {
     if (amount <= 0) {
-        throw InvalidAmount("支取金额必须大于 0");
+        std::cout << "操作失败：支取金额必须大于 0。\n";
+        return false;
     }
-    if (status != AccountStatus::NORMAL) {
-        throw AccountFrozen("账户已" + getStatusString() + "，禁止支取");
+    if (!isNormal()) {
+        std::cout << "操作失败：账户已" << getStatusString() << "，禁止支取。\n";
+        return false;
     }
     if (amount != balance) {
-        throw InvalidAmount("定期存款必须一次性全额支取，当前余额为 " + formatMoney(balance) + " 元");
+        std::cout << "操作失败：定期存款必须一次性全额支取，当前余额为 " << formatMoney(balance) << " 元。\n";
+        return false;
     }
     balance = 0;
+    return true;
 }
 
 // 多态计息：到期按定期利率算整期利息；未到期提前支取按活期利率×实际天数算

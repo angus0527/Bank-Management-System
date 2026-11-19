@@ -14,9 +14,9 @@ public:
                   const Date &openDate, long long creditLimit = 500000,
                   long long dailyRateX10000 = 5);
 
-    void deposit(long long amount) override;
+    bool deposit(long long amount) override;
 
-    void withdraw(long long amount) override;
+    bool withdraw(long long amount) override;
 
     long long calcInterest(const Date &today) const override;
 

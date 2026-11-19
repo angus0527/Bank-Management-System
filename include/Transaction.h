@@ -1,7 +1,6 @@
 #ifndef TRANSACTION_H
 #define TRANSACTION_H
 
-#include <stdexcept>
 #include <string>
 
 enum class TransactionType {
@@ -33,7 +32,7 @@ public:
     // 类型 ↔ 存储格式中的英文码（DEP/WDR/TRF/INT），供 storage 层读写用
     static std::string typeCode(TransactionType type);
 
-    static TransactionType typeFromCode(const std::string &code); // 非法码抛 invalid_argument
+    static TransactionType typeFromCode(const std::string &code);
 
     long long getId() const {
         return id;

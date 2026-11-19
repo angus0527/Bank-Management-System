@@ -31,7 +31,7 @@ TransactionType Transaction::typeFromCode(const std::string &code) {
     if (code == "WDR") return TransactionType::WDR;
     if (code == "TRF") return TransactionType::TRF;
     if (code == "INT") return TransactionType::INT;
-    throw std::invalid_argument("未知的交易类型码: \"" + code + "\"");
+    return TransactionType::DEP;
 }
 
 std::string Transaction::serialize() const {

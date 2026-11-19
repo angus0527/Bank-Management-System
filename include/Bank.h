@@ -26,38 +26,40 @@ class Bank {
     long long fixed3YRateX10000 = 250;     // 定期3年   2.50%
     long long creditDailyRateX10000 = 5;   // 信用日利率 0.05%
 
+    Customer *findCustomer(long long ownerId);
+
     void recordTx(TransactionType type, long long fromId, long long toId, long long amount,
                   long long balanceSnapshot, const std::string &remark);
 
 public:
-    // 登录与个人信息管理
+    // 登录与个人信息管理（失败返回 nullptr / false）
     User *login(long long userId, const std::string &password);
-    void updateUserInfo(long long userId, const std::string &newName, const std::string &newPhone = "");
-    void changeUserPassword(long long userId, const std::string &oldPassword, const std::string &newPassword);
+    bool updateUserInfo(long long userId, const std::string &newName, const std::string &newPhone = "");
+    bool changeUserPassword(long long userId, const std::string &oldPassword, const std::string &newPassword);
 
-    // 三类账户开户
+    // 三类账户开户（成功返回新账号，失败返回 -1）
     long long openAccount(long long ownerId, long long initialDeposit, const Date &openDate = Date::today());
     long long openFixedAccount(long long ownerId, long long initialDeposit, int termMonths,
                                bool autoRenew = false, const Date &openDate = Date::today());
     long long openCreditAccount(long long ownerId, long long creditLimit, const Date &openDate = Date::today());
 
     // 核心交易业务
-    void deposit(long long accountId, long long amount, const std::string &remark = "");
-    void withdraw(long long accountId, long long amount, const std::string &remark = "");
+    bool deposit(long long accountId, long long amount, const std::string &remark = "");
+    bool withdraw(long long accountId, long long amount, const std::string &remark = "");
     long long withdrawFixed(long long accountId, const Date &today = Date::today());
-    void transfer(long long fromAccountId, long long toAccountId, long long amount,
+    bool transfer(long long fromAccountId, long long toAccountId, long long amount,
                   const std::string &remark = "");
     long long settleInterest(long long accountId, const Date &today = Date::today());
     int processMaturityRollovers(const Date &today = Date::today());
 
     // 管理员风控与利率调节
-    void freezeAccount(long long accountId);
-    void unfreezeAccount(long long accountId);
-    void closeAccount(long long accountId);
+    bool freezeAccount(long long accountId);
+    bool unfreezeAccount(long long accountId);
+    bool closeAccount(long long accountId);
 
-    void setCurrentRate(long long rateX10000);
-    void setFixedRate(int termMonths, long long rateX10000);
-    void setCreditDailyRate(long long rateX10000);
+    bool setCurrentRate(long long rateX10000);
+    bool setFixedRate(int termMonths, long long rateX10000);
+    bool setCreditDailyRate(long long rateX10000);
     long long getCurrentRateX10000() const { return currentRateX10000; }
     long long getFixedRateX10000(int termMonths) const;
     long long getCreditDailyRateX10000() const { return creditDailyRateX10000; }
@@ -73,7 +75,7 @@ public:
     User *findUser(long long userId);
 
     // storage 读写辅助接口
-    void addUser(std::unique_ptr<User> user);
+    bool addUser(std::unique_ptr<User> user);
     void addAccount(std::unique_ptr<Account> account);
     void addTransaction(const Transaction &t);
     void setNextAccountId(long long id);

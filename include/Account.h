@@ -5,7 +5,6 @@
 #include <string>
 
 #include "Date.h"
-#include "exception.h"
 
 enum class AccountStatus {
     NORMAL = 1,
@@ -22,8 +21,7 @@ enum class AccountType {
 // 金额（分）→ "1234.56" 显示字符串
 std::string formatMoney(long long cents);
 
-// 账户抽象基类
-// 金额单位一律为"分"；业务失败不返回 bool，一律抛 exception.h 中的异常
+// 账户抽象基类（金额单位一律为“分”）
 class Account {
 protected:
     long long accountId;   // 账号（与 User 体系的 long long id 统一）
@@ -37,11 +35,10 @@ public:
 
     virtual ~Account() = default;
 
-    // 存款/取款：金额非法抛 InvalidAmount，账户冻结/销户抛 AccountFrozen，
-    // 余额不足抛 InsufficientBalance（信用账户第 4 周重写 withdraw 支持透支）
-    virtual void deposit(long long amount);
+    // 存款/取款：成功返回 true，失败输出提示并返回 false
+    virtual bool deposit(long long amount);
 
-    virtual void withdraw(long long amount);
+    virtual bool withdraw(long long amount);
 
     // 计算截至 today 应计利息（分），不改余额；各账户类型多态实现
     virtual long long calcInterest(const Date &today) const = 0;
@@ -60,8 +57,8 @@ public:
 
     void unfreeze();
 
-    // 销户
-    void closeAccount();
+    // 销户（要求余额为 0）
+    bool closeAccount();
 
     long long getAccountId() const { return accountId; }
 
