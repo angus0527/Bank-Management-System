@@ -29,6 +29,16 @@ User *Bank::login(long long userId, const std::string &password) {
     return it->second.get();
 }
 
+long long Bank::registerCustomer(const std::string &name, const std::string &password, const std::string &phone) {
+    if (name.empty() || password.empty()) {
+        std::cout << "注册失败：姓名和密码不能为空。\n";
+        return -1;
+    }
+    long long id = nextUserId++;
+    users[id] = std::make_unique<Customer>(id, name, User::encryptPassword(password), phone);
+    return id;
+}
+
 bool Bank::updateUserInfo(long long userId, const std::string &newName, const std::string &newPhone) {
     User *user = findUser(userId);
     if (user == nullptr) {
@@ -388,6 +398,7 @@ bool Bank::addUser(std::unique_ptr<User> user) {
         std::cout << "操作失败：用户 " << id << " 重复装载。\n";
         return false;
     }
+    if (id >= nextUserId) nextUserId = id + 1;
     users[id] = std::move(user);
     return true;
 }

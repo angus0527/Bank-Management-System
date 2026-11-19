@@ -68,15 +68,6 @@ static bool hasAccount(const Customer *cust, long long aid) {
     return false;
 }
 
-// 首次运行无数据时初始化默认管理员和两位测试客户
-static void seedDefaultData(Bank &bank) {
-    bank.addUser(std::make_unique<Admin>(10001, "admin", User::encryptPassword("admin123")));
-    bank.addUser(std::make_unique<Customer>(20001, "张三", User::encryptPassword("zs123456"), "13800000001"));
-    bank.addUser(std::make_unique<Customer>(20002, "李四", User::encryptPassword("ls123456"), "13800000002"));
-    bank.openAccount(20001, 1000.29, Date(2026, 10, 2));
-    bank.openAccount(20002, 300.04, Date(2026, 10, 15));
-}
-
 // 按账号、类型、日期段筛选并调用 Transaction::display() 输出流水；cust 非空时仅展示本人账户流水
 static void showTransactions(const Bank &bank, long long accId, const Customer *cust = nullptr) {
     int typeFilter = 0;
@@ -364,15 +355,11 @@ int main() {
     Bank bank;
     TextFileStorage storage;
     storage.load(bank);
-    if (bank.getUsers().empty()) {
-        seedDefaultData(bank);
-        storage.save(bank);
-    }
     bank.processMaturityRollovers(Date::today());
 
     while (true) {
         std::cout << "\n========= 银行账户管理系统 =========\n";
-        std::cout << "1. 登录系统\n0. 保存并退出\n";
+        std::cout << "1. 登录系统\n2. 注册新客户\n0. 保存并退出\n";
         long long op = -1;
         if (!inputLongLong("请选择: ", op)) {
             if (std::cin.eof()) break;
@@ -395,6 +382,20 @@ int main() {
                 Logger::log("用户 " + std::to_string(uid) + " 登录");
                 if (u->role() == "Admin") adminMenu(bank, u);
                 else if (Customer *c = dynamic_cast<Customer *>(u)) customerMenu(bank, c);
+            }
+        } else if (op == 2) {
+            std::string name, pwd, phone;
+            std::cout << "姓名: ";
+            std::cin >> name;
+            std::cout << "密码: ";
+            std::cin >> pwd;
+            std::cout << "电话: ";
+            std::cin >> phone;
+            long long nid = bank.registerCustomer(name, pwd, phone);
+            if (nid > 0) {
+                storage.save(bank);
+                Logger::log("新客户注册 ID:" + std::to_string(nid) + " 姓名:" + name);
+                std::cout << "注册成功！您的用户ID为: " << nid << "（请牢记，用于登录）\n";
             }
         }
     }

@@ -16,6 +16,7 @@ class Bank {
     std::map<long long, std::unique_ptr<User>> users;
     std::map<long long, std::unique_ptr<Account>> accounts;
     std::vector<Transaction> transactions;
+    long long nextUserId = 20001;
     long long nextAccountId = 62001;
     long long nextTransactionId = 1;
 
@@ -32,8 +33,9 @@ class Bank {
                   double balanceSnapshot, const std::string &remark);
 
 public:
-    // 登录与个人信息管理
+    // 登录、注册与个人信息管理
     User *login(long long userId, const std::string &password);
+    long long registerCustomer(const std::string &name, const std::string &password, const std::string &phone);
     bool updateUserInfo(long long userId, const std::string &newName, const std::string &newPhone = "");
     bool changeUserPassword(long long userId, const std::string &oldPassword, const std::string &newPassword);
 
