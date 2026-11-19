@@ -1,4 +1,3 @@
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -356,51 +355,6 @@ static void adminMenu(Bank &bank, User *admin) {
     }
 }
 
-// 简化版全流程自检（演示核心业务、日期加减、三类账户多态计息与独立目录持久化）
-static void runDemoTest() {
-    std::cout << "\n--- 开始功能自检 ---\n";
-    Date d(2026, 2, 28);
-    if (d.addDays(1).toString() == "2026-03-01" && Date(2024, 2, 28).addDays(2).toString() == "2024-03-01" &&
-        Date(2026, 1, 1).daysBetween(Date(2026, 1, 11)) == 10) {
-        std::cout << "[PASS] 日期闰年加减与天数差验证通过\n";
-    }
-
-    Bank b;
-    seedDefaultData(b);
-
-    if (b.login(20001, "wrong") == nullptr) {
-        std::cout << "[PASS] 错误密码拦截\n";
-    }
-    b.deposit(62001, 500.0, "存款");
-    b.withdraw(62001, 200.0, "取款");
-    b.transfer(62001, 62002, 300.0, "转账");
-    if (!b.withdraw(62001, 999999.0)) {
-        std::cout << "[PASS] 余额不足拦截\n";
-    }
-
-    long long fixId = b.openFixedAccount(20001, 10000.0, 12, true, Date(2025, 1, 1));
-    b.processMaturityRollovers(Date(2026, 1, 2));
-    std::cout << "[PASS] 1万定期到期转存余额: " << formatMoney(b.findAccount(fixId)->getBalance()) << " 元\n";
-
-    long long crId = b.openCreditAccount(20001, 500.0, Date(2026, 10, 1));
-    b.withdraw(crId, 100.0, "透支");
-    b.deposit(crId, 60.0, "还款");
-    b.settleInterest(crId, Date(2026, 10, 11));
-    CreditAccount *cr = dynamic_cast<CreditAccount *>(b.findAccount(crId));
-    std::cout << "[PASS] 信用欠100还60计10天息后欠款: " << formatMoney(cr->getDebt()) << " 元\n";
-
-    TextFileStorage st("data/test/users.txt", "data/test/accounts.txt",
-                       "data/test/transactions.txt", "data/test/rates.txt");
-    st.save(b);
-    Bank b2;
-    st.load(b2);
-    if (b2.findAccount(62001)->getBalance() == b.findAccount(62001)->getBalance() &&
-        b2.findAccount(crId)->getBalance() == b.findAccount(crId)->getBalance()) {
-        std::cout << "[PASS] 读档一致性验证通过\n";
-    }
-    std::filesystem::remove_all("data/test");
-}
-
 int main() {
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
@@ -418,7 +372,7 @@ int main() {
 
     while (true) {
         std::cout << "\n========= 银行账户管理系统 =========\n";
-        std::cout << "1. 登录系统\n2. 一键功能自测\n0. 保存并退出\n";
+        std::cout << "1. 登录系统\n0. 保存并退出\n";
         long long op = -1;
         if (!inputLongLong("请选择: ", op)) {
             if (std::cin.eof()) break;
@@ -442,8 +396,6 @@ int main() {
                 if (u->role() == "Admin") adminMenu(bank, u);
                 else if (Customer *c = dynamic_cast<Customer *>(u)) customerMenu(bank, c);
             }
-        } else if (op == 2) {
-            runDemoTest();
         }
     }
     return 0;
