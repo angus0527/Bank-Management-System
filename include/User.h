@@ -25,6 +25,10 @@ public:
         return name;
     };
 
+    void setName(const std::string &newName) {
+        name = newName;
+    }
+
     long long getId() const {
         return id;
     };
@@ -55,6 +59,10 @@ public:
 
     std::string getPhoneNumber() const {
         return phoneNumber;
+    }
+
+    void setPhoneNumber(const std::string &newPhone) {
+        phoneNumber = newPhone;
     }
 
     void addAccount(long long id) {

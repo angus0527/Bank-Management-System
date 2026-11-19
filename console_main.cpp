@@ -7,7 +7,9 @@
 #include <vector>
 
 #include "Bank.h"
+#include "CreditAccount.h"
 #include "CurrentAccount.h"
+#include "FixedAccount.h"
 #include "Logger.h"
 #include "Storage.h"
 #include "exception.h"
@@ -16,7 +18,6 @@
 #include <windows.h>
 #endif
 
-//删除前后的垃圾字符
 static std::string cleanInput(std::string s) {
     while (!s.empty() && (static_cast<unsigned char>(s.front()) == 0xEF ||
                           static_cast<unsigned char>(s.front()) == 0xBB ||
@@ -30,13 +31,40 @@ static std::string cleanInput(std::string s) {
     return s;
 }
 
-//把元转为分
+static bool readToken(std::string &out) {
+    std::string raw;
+    if (!(std::cin >> raw)) {
+        return false;
+    }
+    out = cleanInput(raw);
+    return true;
+}
+
+static bool readLongLong(const std::string &prompt, long long &out) {
+    std::cout << prompt;
+    std::string s;
+    if (!readToken(s)) return false;
+    try {
+        size_t idx = 0;
+        long long val = std::stoll(s, &idx);
+        if (idx != s.size()) {
+            std::cout << "【错误】输入必须为纯数字整数！\n";
+            return false;
+        }
+        out = val;
+        return true;
+    } catch (...) {
+        std::cout << "【错误】输入格式不合法，请输入整数！\n";
+        return false;
+    }
+}
+
 static bool parseYuanToCents(const std::string &str, long long &cents) {
     if (str.empty()) return false;
     try {
         size_t idx = 0;
         double val = std::stod(str, &idx);
-        if (idx != str.size() || val < 0.0) return false;
+        if (idx != str.size() || !std::isfinite(val) || val < 0.0) return false;
         auto dotPos = str.find('.');
         if (dotPos != std::string::npos && str.size() - dotPos - 1 > 2) {
             return false;
@@ -58,10 +86,75 @@ static std::string txTypeStr(TransactionType t) {
     }
 }
 
+static std::string accountTypeStr(AccountType t) {
+    switch (t) {
+        case AccountType::SAVINGS: return "活期";
+        case AccountType::FIXED: return "定期";
+        case AccountType::CREDIT: return "信用";
+        default: return "未知";
+    }
+}
+
 static void printHeader(const std::string &title) {
     std::cout << "\n======================================================\n";
     std::cout << "  " << title << "\n";
     std::cout << "======================================================\n";
+}
+
+static void printTransactionTable(const std::vector<const Transaction *> &txs) {
+    std::cout << "\n-------------------------- 交易流水记录 (" << txs.size() << " 条) --------------------------\n";
+    std::cout << std::left << std::setw(6) << "流水号"
+              << std::setw(21) << "交易时间"
+              << std::setw(8) << "类型"
+              << std::setw(10) << "付款账号"
+              << std::setw(10) << "收款账号"
+              << std::setw(12) << "金额(元)"
+              << std::setw(12) << "余额快照"
+              << "备注\n";
+    std::cout << "--------------------------------------------------------------------------\n";
+    for (const auto *t : txs) {
+        std::cout << std::left << std::setw(6) << t->getId()
+                  << std::setw(21) << t->getDatetime()
+                  << std::setw(8) << txTypeStr(t->getType())
+                  << std::setw(10) << (t->getFromAccountId() == 0 ? "-" : std::to_string(t->getFromAccountId()))
+                  << std::setw(10) << (t->getToAccountId() == 0 ? "-" : std::to_string(t->getToAccountId()))
+                  << std::setw(12) << formatMoney(t->getAmount())
+                  << std::setw(12) << formatMoney(t->getBalanceSnapshot())
+                  << t->getRemark() << "\n";
+    }
+}
+
+static void queryTransactionsInteractive(const Bank &bank, long long defaultAid, bool allowAll) {
+    long long aid = defaultAid;
+    if (allowAll) {
+        if (!readLongLong("请输入筛选账号 (输入 0 查询全部): ", aid)) return;
+    } else if (aid == 0) {
+        if (!readLongLong("请输入查询账号 (输入 0 查询全部): ", aid)) return;
+    }
+
+    std::cout << "交易类型筛选 (0=全部, 1=存款, 2=取款, 3=转账, 4=结息): ";
+    std::string typeStr;
+    if (!readToken(typeStr)) return;
+    int typeFilter = 0;
+    try { typeFilter = std::stoi(typeStr); } catch (...) { typeFilter = 0; }
+    if (typeFilter < 0 || typeFilter > 4) typeFilter = 0;
+
+    std::cout << "起始日期 (YYYY-MM-DD，输入 0 不限): ";
+    std::string startDate;
+    if (!readToken(startDate)) return;
+    if (startDate == "0") startDate.clear();
+
+    std::cout << "结束日期 (YYYY-MM-DD，输入 0 不限): ";
+    std::string endDate;
+    if (!readToken(endDate)) return;
+    if (endDate == "0") endDate.clear();
+
+    try {
+        auto txs = bank.queryTransactionsFiltered(aid, typeFilter, startDate, endDate);
+        printTransactionTable(txs);
+    } catch (const std::exception &e) {
+        std::cout << "【错误】查询参数不合法：" << e.what() << "\n";
+    }
 }
 
 static void seedDefaultData(Bank &bank) {
@@ -76,25 +169,23 @@ static void seedDefaultData(Bank &bank) {
 static void customerMenu(Bank &bank, Customer *cust, Storage &storage) {
     while (true) {
         printHeader("客户服务中心 - 欢迎您，" + cust->getName() + " (ID: " + std::to_string(cust->getId()) + ")");
-        std::cout << "  [1] 查看名下账户概况\n";
-        std::cout << "  [2] 账户存款\n";
-        std::cout << "  [3] 账户取款\n";
+        std::cout << "  [1] 查看名下账户概况（活期 / 定期 / 信用）\n";
+        std::cout << "  [2] 账户存款 / 信用还款\n";
+        std::cout << "  [3] 账户取款 / 定期支取 / 信用透支\n";
         std::cout << "  [4] 转账汇款\n";
-        std::cout << "  [5] 申请开立新账户\n";
-        std::cout << "  [6] 活期利息结算\n";
+        std::cout << "  [5] 申请开立新账户（活期 / 定期 / 信用）\n";
+        std::cout << "  [6] 账户利息结算\n";
         std::cout << "  [7] 申请账户销户\n";
-        std::cout << "  [8] 查询账户交易流水\n";
-        std::cout << "  [9] 导出对账单到 CSV\n";
-        std::cout << "  [10] 保存数据到本地\n";
+        std::cout << "  [8] 流水多条件组合查询（账号/类型/日期段）\n";
+        std::cout << "  [9] 修改个人信息（姓名/电话/登录密码）\n";
+        std::cout << "  [10] 导出对账单到 CSV\n";
+        std::cout << "  [11] 保存数据到本地\n";
         std::cout << "  [0] 退出登录，返回上级菜单\n";
         std::cout << "------------------------------------------------------\n";
-        std::cout << "请选择操作编号 [0-10]: ";
+        std::cout << "请选择操作编号 [0-11]: ";
 
         std::string choice;
-        if (!(std::cin >> choice)) {
-            break;
-        }
-        choice = cleanInput(choice);
+        if (!readToken(choice)) break;
 
         if (choice == "0") {
             std::cout << "已退出客户登录。\n";
@@ -109,70 +200,89 @@ static void customerMenu(Bank &bank, Customer *cust, Storage &storage) {
                     try {
                         Account *acc = bank.findAccount(aid);
                         std::cout << "账号: " << aid
+                                  << " | 类型: " << accountTypeStr(acc->getAccountType())
                                   << " | 余额: " << formatMoney(acc->getBalance()) << " 元"
                                   << " | 状态: " << acc->getStatusString()
-                                  << " | 开户日: " << acc->getOpenDate().toString() << "\n";
+                                  << " | 开户日: " << acc->getOpenDate().toString();
+                        if (auto *fix = dynamic_cast<FixedAccount *>(acc)) {
+                            std::cout << " | 存期: " << fix->getTermMonths() << "个月"
+                                      << " | 到期日: " << fix->getMaturityDate().toString()
+                                      << " | 自动转存: " << (fix->isAutoRenew() ? "是" : "否");
+                        } else if (auto *cr = dynamic_cast<CreditAccount *>(acc)) {
+                            std::cout << " | 额度: " << formatMoney(cr->getCreditLimit()) << " 元"
+                                      << " | 欠款: " << formatMoney(cr->getDebt()) << " 元"
+                                      << " | 可用: " << formatMoney(cr->getAvailableCredit()) << " 元";
+                        }
+                        std::cout << "\n";
                     } catch (...) {}
                 }
             }
         } else if (choice == "2") {
-            std::cout << "请输入存款账号: ";
             long long aid;
-            std::cin >> aid;
-            std::cout << "请输入存款金额 (元): ";
+            if (!readLongLong("请输入存款/还款账号: ", aid)) continue;
+            std::cout << "请输入金额 (元): ";
             std::string amtStr;
-            std::cin >> amtStr;
+            if (!readToken(amtStr)) continue;
             long long cents = 0;
             if (!parseYuanToCents(amtStr, cents) || cents <= 0) {
                 std::cout << "【错误】金额格式不合法，请输入大于 0 的数字！\n";
                 continue;
             }
-            std::cout << "请输入交易备注 (可留空按回车): ";
+            std::cout << "请输入交易备注: ";
             std::string remark;
-            std::cin >> remark;
-            if (remark.empty()) remark = "柜面存入";
+            if (!readToken(remark)) continue;
 
             try {
                 bank.deposit(aid, cents, remark);
-                Logger::log("账户 " + std::to_string(aid) + " 存款 " + formatMoney(cents) + " 元");
-                std::cout << "【成功】存款完成！当前余额：" << formatMoney(bank.findAccount(aid)->getBalance()) << " 元\n";
+                Logger::log("账户 " + std::to_string(aid) + " 存入/还款 " + formatMoney(cents) + " 元");
+                std::cout << "【成功】操作完成！当前余额：" << formatMoney(bank.findAccount(aid)->getBalance()) << " 元\n";
             } catch (const BankException &e) {
                 std::cout << "【失败】" << e.what() << "\n";
             }
         } else if (choice == "3") {
-            std::cout << "请输入取款账号: ";
             long long aid;
-            std::cin >> aid;
-            std::cout << "请输入取款金额 (元): ";
-            std::string amtStr;
-            std::cin >> amtStr;
-            long long cents = 0;
-            if (!parseYuanToCents(amtStr, cents) || cents <= 0) {
-                std::cout << "【错误】金额格式不合法，请输入大于 0 的数字！\n";
-                continue;
-            }
-            std::cout << "请输入交易备注: ";
-            std::string remark;
-            std::cin >> remark;
-            if (remark.empty()) remark = "ATM取款";
-
+            if (!readLongLong("请输入取款/支取/消费账号: ", aid)) continue;
             try {
-                bank.withdraw(aid, cents, remark);
-                Logger::log("账户 " + std::to_string(aid) + " 取款 " + formatMoney(cents) + " 元");
-                std::cout << "【成功】取款完成！当前余额：" << formatMoney(bank.findAccount(aid)->getBalance()) << " 元\n";
+                Account *acc = bank.findAccount(aid);
+                if (auto *fix = dynamic_cast<FixedAccount *>(acc)) {
+                    Date today = Date::today();
+                    bool early = (today < fix->getMaturityDate());
+                    long long estInterest = fix->calcInterest(today);
+                    std::cout << "提示：该账号为定期账户（" << (early ? "未到期，提前支取按活期计息" : "已到期")
+                              << "），预估利息 " << formatMoney(estInterest) << " 元，本息合计 "
+                              << formatMoney(fix->getBalance() + estInterest) << " 元。\n";
+                    std::cout << "确认全额支取该定期存款吗？(y/n): ";
+                    std::string confirm;
+                    if (!readToken(confirm) || (confirm != "y" && confirm != "Y")) continue;
+                    long long payout = bank.withdrawFixed(aid, today);
+                    Logger::log("定期账户 " + std::to_string(aid) + " 支取本息 " + formatMoney(payout) + " 元");
+                    std::cout << "【成功】定期支取完成！实付本息：" << formatMoney(payout) << " 元\n";
+                } else {
+                    std::cout << "请输入金额 (元): ";
+                    std::string amtStr;
+                    if (!readToken(amtStr)) continue;
+                    long long cents = 0;
+                    if (!parseYuanToCents(amtStr, cents) || cents <= 0) {
+                        std::cout << "【错误】金额格式不合法，请输入大于 0 的数字！\n";
+                        continue;
+                    }
+                    std::cout << "请输入交易备注: ";
+                    std::string remark;
+                    if (!readToken(remark)) continue;
+                    bank.withdraw(aid, cents, remark);
+                    Logger::log("账户 " + std::to_string(aid) + " 取款/透支 " + formatMoney(cents) + " 元");
+                    std::cout << "【成功】操作完成！当前余额：" << formatMoney(acc->getBalance()) << " 元\n";
+                }
             } catch (const BankException &e) {
                 std::cout << "【失败】" << e.what() << "\n";
             }
         } else if (choice == "4") {
-            std::cout << "请输入付款账号: ";
-            long long fromId;
-            std::cin >> fromId;
-            std::cout << "请输入收款账号: ";
-            long long toId;
-            std::cin >> toId;
+            long long fromId, toId;
+            if (!readLongLong("请输入付款账号: ", fromId)) continue;
+            if (!readLongLong("请输入收款账号: ", toId)) continue;
             std::cout << "请输入转账金额 (元): ";
             std::string amtStr;
-            std::cin >> amtStr;
+            if (!readToken(amtStr)) continue;
             long long cents = 0;
             if (!parseYuanToCents(amtStr, cents) || cents <= 0) {
                 std::cout << "【错误】金额格式不合法！\n";
@@ -180,56 +290,103 @@ static void customerMenu(Bank &bank, Customer *cust, Storage &storage) {
             }
             std::cout << "请输入交易备注: ";
             std::string remark;
-            std::cin >> remark;
+            if (!readToken(remark)) continue;
             if (remark.empty()) remark = "同行转账";
 
             try {
                 bank.transfer(fromId, toId, cents, remark);
-                Logger::log("账户 " + std::to_string(fromId) + " 向账户 " + std::to_string(toId) + " 转账 " + formatMoney(cents) + " 元");
-                std::cout << "【成功】转账成功！付款账户剩余余额：" << formatMoney(bank.findAccount(fromId)->getBalance()) << " 元\n";
+                Logger::log("账户 " + std::to_string(fromId) + " 向账户 " + std::to_string(toId) +
+                            " 转账 " + formatMoney(cents) + " 元");
+                std::cout << "【成功】转账成功！付款账户剩余余额："
+                          << formatMoney(bank.findAccount(fromId)->getBalance()) << " 元\n";
             } catch (const BankException &e) {
                 std::cout << "【失败】" << e.what() << "\n";
             }
         } else if (choice == "5") {
-            std::cout << "请输入初始存款金额 (元，允许为 0): ";
-            std::string amtStr;
-            std::cin >> amtStr;
-            long long cents = 0;
-            if (!parseYuanToCents(amtStr, cents)) {
-                std::cout << "【错误】金额格式不合法！\n";
-                continue;
-            }
+            std::cout << "请选择开户类型：\n";
+            std::cout << "  [1] 活期储蓄账户（年利率 " << formatMoney(bank.getCurrentRateX10000()) << "%）\n";
+            std::cout << "  [2] 定期存款账户（3个月 " << formatMoney(bank.getFixedRateX10000(3))
+                      << "% / 1年 " << formatMoney(bank.getFixedRateX10000(12))
+                      << "% / 3年 " << formatMoney(bank.getFixedRateX10000(36)) << "%）\n";
+            std::cout << "  [3] 信用账户（日利率 " << formatMoney(bank.getCreditDailyRateX10000()) << "%）\n";
+            std::cout << "请输入账户类型 [1-3]: ";
+            std::string accChoice;
+            if (!readToken(accChoice)) continue;
+
             try {
-                long long newAid = bank.openAccount(cust->getId(), cents);
-                Logger::log("客户 " + std::to_string(cust->getId()) + " 成功开户 " + std::to_string(newAid));
-                std::cout << "【成功】新账户已生成！账号：" << newAid << "，初始存入：" << formatMoney(cents) << " 元\n";
+                if (accChoice == "1") {
+                    std::cout << "请输入初始存款金额 (元，允许为 0): ";
+                    std::string amtStr;
+                    if (!readToken(amtStr)) continue;
+                    long long cents = 0;
+                    if (!parseYuanToCents(amtStr, cents)) {
+                        std::cout << "【错误】金额格式不合法！\n";
+                        continue;
+                    }
+                    long long newAid = bank.openAccount(cust->getId(), cents);
+                    Logger::log("客户 " + std::to_string(cust->getId()) + " 开立活期账户 " + std::to_string(newAid));
+                    std::cout << "【成功】活期账户开立成功！账号：" << newAid
+                              << "，初始存入：" << formatMoney(cents) << " 元\n";
+                } else if (accChoice == "2") {
+                    std::cout << "请选择存期 (3=三个月, 12=一年, 36=三年): ";
+                    long long term = 0;
+                    if (!readLongLong("", term)) continue;
+                    std::cout << "请输入定期存入金额 (元，必须大于 0): ";
+                    std::string amtStr;
+                    if (!readToken(amtStr)) continue;
+                    long long cents = 0;
+                    if (!parseYuanToCents(amtStr, cents) || cents <= 0) {
+                        std::cout << "【错误】金额格式不合法！\n";
+                        continue;
+                    }
+                    std::cout << "到期是否自动转存？(y/n): ";
+                    std::string renew;
+                    if (!readToken(renew)) continue;
+                    bool autoRenew = (renew == "y" || renew == "Y");
+                    long long newAid = bank.openFixedAccount(cust->getId(), cents, static_cast<int>(term), autoRenew);
+                    Logger::log("客户 " + std::to_string(cust->getId()) + " 开立定期账户 " + std::to_string(newAid));
+                    std::cout << "【成功】定期账户开立成功！账号：" << newAid
+                              << "，到期日：" << bank.findAccount(newAid)->getOpenDate().addMonths(static_cast<int>(term)).toString() << "\n";
+                } else if (accChoice == "3") {
+                    std::cout << "请输入申请授信额度 (元，如 5000): ";
+                    std::string limStr;
+                    if (!readToken(limStr)) continue;
+                    long long limitCents = 0;
+                    if (!parseYuanToCents(limStr, limitCents) || limitCents <= 0) {
+                        std::cout << "【错误】额度格式不合法！\n";
+                        continue;
+                    }
+                    long long newAid = bank.openCreditAccount(cust->getId(), limitCents);
+                    Logger::log("客户 " + std::to_string(cust->getId()) + " 开立信用账户 " + std::to_string(newAid));
+                    std::cout << "【成功】信用账户开立成功！账号：" << newAid
+                              << "，授信额度：" << formatMoney(limitCents) << " 元\n";
+                } else {
+                    std::cout << "无效账户类型。\n";
+                }
             } catch (const BankException &e) {
                 std::cout << "【失败】" << e.what() << "\n";
             }
         } else if (choice == "6") {
-            std::cout << "请输入结息账号: ";
             long long aid;
-            std::cin >> aid;
+            if (!readLongLong("请输入结息账号: ", aid)) continue;
             try {
                 long long interest = bank.settleInterest(aid);
                 if (interest > 0) {
                     Logger::log("账户 " + std::to_string(aid) + " 结息 " + formatMoney(interest) + " 元");
-                    std::cout << "【成功】结息完成！本次入账利息：" << formatMoney(interest) << " 元，最新余额："
+                    std::cout << "【成功】结息完成！本次计结利息：" << formatMoney(interest) << " 元，最新余额："
                               << formatMoney(bank.findAccount(aid)->getBalance()) << " 元\n";
                 } else {
-                    std::cout << "【提示】当前未到结息周期或无新增利息。\n";
+                    std::cout << "【提示】当前未到结息日或无新增利息。\n";
                 }
             } catch (const BankException &e) {
                 std::cout << "【失败】" << e.what() << "\n";
             }
         } else if (choice == "7") {
-            std::cout << "请输入要销毁的账号: ";
             long long aid;
-            std::cin >> aid;
+            if (!readLongLong("请输入要销毁的账号: ", aid)) continue;
             std::cout << "确认销户账户 " << aid << " 吗？(y/n): ";
             std::string confirm;
-            std::cin >> confirm;
-            if (confirm != "y" && confirm != "Y") continue;
+            if (!readToken(confirm) || (confirm != "y" && confirm != "Y")) continue;
 
             try {
                 bank.closeAccount(aid);
@@ -239,42 +396,52 @@ static void customerMenu(Bank &bank, Customer *cust, Storage &storage) {
                 std::cout << "【失败】" << e.what() << "\n";
             }
         } else if (choice == "8") {
-            std::cout << "请输入查询账号 (输入 0 查询名下所有账户流水): ";
-            long long aid;
-            std::cin >> aid;
-
-            auto txs = bank.queryTransactions(aid);
-            std::cout << "\n-------------------------- 交易流水记录 --------------------------\n";
-            std::cout << std::left << std::setw(6) << "流水号"
-                      << std::setw(21) << "交易时间"
-                      << std::setw(8) << "类型"
-                      << std::setw(10) << "付款账号"
-                      << std::setw(10) << "收款账号"
-                      << std::setw(12) << "金额(元)"
-                      << std::setw(12) << "余额快照"
-                      << "备注\n";
-            std::cout << "------------------------------------------------------------------\n";
-            for (const auto *t : txs) {
-                std::cout << std::left << std::setw(6) << t->getId()
-                          << std::setw(21) << t->getDatetime()
-                          << std::setw(8) << txTypeStr(t->getType())
-                          << std::setw(10) << (t->getFromAccountId() == 0 ? "-" : std::to_string(t->getFromAccountId()))
-                          << std::setw(10) << (t->getToAccountId() == 0 ? "-" : std::to_string(t->getToAccountId()))
-                          << std::setw(12) << formatMoney(t->getAmount())
-                          << std::setw(12) << formatMoney(t->getBalanceSnapshot())
-                          << t->getRemark() << "\n";
-            }
+            queryTransactionsInteractive(bank, 0, false);
         } else if (choice == "9") {
-            std::cout << "请输入要导出对账单的账号: ";
+            std::cout << "\n--- 修改个人信息 ---\n";
+            std::cout << "  [1] 修改姓名与联系电话（当前姓名：" << cust->getName()
+                      << "，电话：" << cust->getPhoneNumber() << "）\n";
+            std::cout << "  [2] 修改登录密码\n";
+            std::cout << "请选择 [1-2]: ";
+            std::string sub;
+            if (!readToken(sub)) continue;
+            try {
+                if (sub == "1") {
+                    std::cout << "请输入新姓名: ";
+                    std::string newName;
+                    if (!readToken(newName)) continue;
+                    std::cout << "请输入新联系电话: ";
+                    std::string newPhone;
+                    if (!readToken(newPhone)) continue;
+                    bank.updateUserInfo(cust->getId(), newName, newPhone);
+                    Logger::log("客户 " + std::to_string(cust->getId()) + " 修改了姓名/电话信息");
+                    std::cout << "【成功】个人资料已更新！\n";
+                } else if (sub == "2") {
+                    std::cout << "请输入原密码: ";
+                    std::string oldPwd;
+                    if (!readToken(oldPwd)) continue;
+                    std::cout << "请输入新密码: ";
+                    std::string newPwd;
+                    if (!readToken(newPwd)) continue;
+                    bank.changeUserPassword(cust->getId(), oldPwd, newPwd);
+                    Logger::log("客户 " + std::to_string(cust->getId()) + " 修改了登录密码");
+                    std::cout << "【成功】密码修改成功！下次请使用新密码登录。\n";
+                } else {
+                    std::cout << "无效选项。\n";
+                }
+            } catch (const BankException &e) {
+                std::cout << "【失败】" << e.what() << "\n";
+            }
+        } else if (choice == "10") {
             long long aid;
-            std::cin >> aid;
+            if (!readLongLong("请输入要导出对账单的账号: ", aid)) continue;
             std::string path = "statement_" + std::to_string(aid) + ".csv";
             std::ofstream out(path);
             if (!out.is_open()) {
                 std::cout << "【错误】无法创建目标 CSV 文件！\n";
                 continue;
             }
-            out << "\xEF\xBB\xBF"; // UTF-8 BOM
+            out << "\xEF\xBB\xBF";
             out << "流水号,交易时间,类型,付款账号,收款账号,金额(元),余额快照(元),备注\n";
             for (const auto *t : bank.queryTransactions(aid)) {
                 out << t->getId() << "," << t->getDatetime() << "," << txTypeStr(t->getType()) << ","
@@ -285,7 +452,7 @@ static void customerMenu(Bank &bank, Customer *cust, Storage &storage) {
             }
             out.close();
             std::cout << "【成功】对账单已成功导出至：" << path << "\n";
-        } else if (choice == "10") {
+        } else if (choice == "11") {
             storage.save(bank);
             Logger::log("客户保存数据至本地文件");
             std::cout << "【成功】全部数据已成功持久化至 data/ 文本文件！\n";
@@ -299,46 +466,50 @@ static void customerMenu(Bank &bank, Customer *cust, Storage &storage) {
 static void adminMenu(Bank &bank, User *admin, Storage &storage) {
     while (true) {
         printHeader("系统管理员控制台 - 操作员: " + admin->getName() + " (ID: " + std::to_string(admin->getId()) + ")");
-        std::cout << "  [1] 查看全行所有账户总览\n";
+        std::cout << "  [1] 查看全行所有账户总览（活期 / 定期 / 信用）\n";
         std::cout << "  [2] 查看客户名册与总资产统计\n";
         std::cout << "  [3] 冻结指定账户\n";
         std::cout << "  [4] 解冻指定账户\n";
         std::cout << "  [5] 强制销户\n";
-        std::cout << "  [6] 一键全行日终结息批处理\n";
-        std::cout << "  [7] 全行业务流水审计与查询\n";
-        std::cout << "  [8] 查看系统审计日志\n";
-        std::cout << "  [9] 清空系统审计日志\n";
-        std::cout << "  [10] 全行业务指标统计报表\n";
-        std::cout << "  [11] 保存全行数据到本地文件\n";
+        std::cout << "  [6] 一键全行结息与到期自动转存批处理\n";
+        std::cout << "  [7] 全行利率管理（调整活期 / 定期各档 / 信用日利率）\n";
+        std::cout << "  [8] 全行流水多条件审计与查询\n";
+        std::cout << "  [9] 查看系统审计日志\n";
+        std::cout << "  [10] 清空系统审计日志\n";
+        std::cout << "  [11] 全行业务指标与账户占比统计报表\n";
+        std::cout << "  [12] 保存全行数据到本地文件\n";
         std::cout << "  [0] 退出登录，返回上级菜单\n";
         std::cout << "------------------------------------------------------\n";
-        std::cout << "请选择操作编号 [0-11]: ";
+        std::cout << "请选择操作编号 [0-12]: ";
 
         std::string choice;
-        if (!(std::cin >> choice)) {
-            break;
-        }
-        choice = cleanInput(choice);
+        if (!readToken(choice)) break;
 
         if (choice == "0") {
             std::cout << "已退出管理员会话。\n";
             break;
         } else if (choice == "1") {
-            std::cout << "\n-------------------- 全行所有账户 --------------------\n";
+            std::cout << "\n----------------------- 全行所有账户 -----------------------\n";
             std::cout << std::left << std::setw(10) << "账号"
-                      << std::setw(12) << "所属客户ID"
+                      << std::setw(10) << "户主ID"
                       << std::setw(8) << "类型"
                       << std::setw(14) << "余额 (元)"
                       << std::setw(10) << "状态"
-                      << "开户日期\n";
-            std::cout << "------------------------------------------------------\n";
+                      << "附加信息\n";
+            std::cout << "------------------------------------------------------------\n";
             for (const auto &[aid, acc] : bank.getAccounts()) {
+                std::string extra = "开户 " + acc->getOpenDate().toString();
+                if (auto *fix = dynamic_cast<FixedAccount *>(acc.get())) {
+                    extra = std::to_string(fix->getTermMonths()) + "月 | 到期 " + fix->getMaturityDate().toString();
+                } else if (auto *cr = dynamic_cast<CreditAccount *>(acc.get())) {
+                    extra = "额度 " + formatMoney(cr->getCreditLimit()) + " | 欠款 " + formatMoney(cr->getDebt());
+                }
                 std::cout << std::left << std::setw(10) << aid
-                          << std::setw(12) << acc->getOwnerId()
-                          << std::setw(8) << "活期"
+                          << std::setw(10) << acc->getOwnerId()
+                          << std::setw(8) << accountTypeStr(acc->getAccountType())
                           << std::setw(14) << formatMoney(acc->getBalance())
                           << std::setw(10) << acc->getStatusString()
-                          << acc->getOpenDate().toString() << "\n";
+                          << extra << "\n";
             }
         } else if (choice == "2") {
             std::cout << "\n------------------------ 客户名册 ------------------------\n";
@@ -347,7 +518,7 @@ static void adminMenu(Bank &bank, User *admin, Storage &storage) {
                       << std::setw(10) << "角色"
                       << std::setw(16) << "联系电话"
                       << std::setw(10) << "账户数"
-                      << "储蓄总资产 (元)\n";
+                      << "净资产 (元)\n";
             std::cout << "----------------------------------------------------------\n";
             for (const auto &[uid, user] : bank.getUsers()) {
                 auto *c = dynamic_cast<Customer *>(user.get());
@@ -369,9 +540,8 @@ static void adminMenu(Bank &bank, User *admin, Storage &storage) {
                           << (c ? formatMoney(totalAssets) : "-") << "\n";
             }
         } else if (choice == "3") {
-            std::cout << "请输入要冻结的账号: ";
             long long aid;
-            std::cin >> aid;
+            if (!readLongLong("请输入要冻结的账号: ", aid)) continue;
             try {
                 bank.freezeAccount(aid);
                 Logger::log("管理员 " + std::to_string(admin->getId()) + " 冻结账户 " + std::to_string(aid));
@@ -380,9 +550,8 @@ static void adminMenu(Bank &bank, User *admin, Storage &storage) {
                 std::cout << "【失败】" << e.what() << "\n";
             }
         } else if (choice == "4") {
-            std::cout << "请输入要解冻的账号: ";
             long long aid;
-            std::cin >> aid;
+            if (!readLongLong("请输入要解冻的账号: ", aid)) continue;
             try {
                 bank.unfreezeAccount(aid);
                 Logger::log("管理员 " + std::to_string(admin->getId()) + " 解冻账户 " + std::to_string(aid));
@@ -391,9 +560,8 @@ static void adminMenu(Bank &bank, User *admin, Storage &storage) {
                 std::cout << "【失败】" << e.what() << "\n";
             }
         } else if (choice == "5") {
-            std::cout << "请输入要强制销户的账号: ";
             long long aid;
-            std::cin >> aid;
+            if (!readLongLong("请输入要强制销户的账号: ", aid)) continue;
             try {
                 bank.closeAccount(aid);
                 Logger::log("管理员 " + std::to_string(admin->getId()) + " 销户 " + std::to_string(aid));
@@ -402,6 +570,7 @@ static void adminMenu(Bank &bank, User *admin, Storage &storage) {
                 std::cout << "【失败】" << e.what() << "\n";
             }
         } else if (choice == "6") {
+            int rolled = bank.processMaturityRollovers(Date::today());
             long long totalInterest = 0;
             int count = 0;
             for (const auto &[aid, acc] : bank.getAccounts()) {
@@ -413,24 +582,48 @@ static void adminMenu(Bank &bank, User *admin, Storage &storage) {
                     }
                 } catch (...) {}
             }
-            Logger::log("管理员执行全行日终结息：共结息 " + std::to_string(count) + " 个账户，入账利息 " + formatMoney(totalInterest) + " 元");
-            std::cout << "【成功】全行结息批处理完成！\n产生利息账户数: " << count
-                      << "\n累计结息总金额: " << formatMoney(totalInterest) << " 元\n";
+            Logger::log("管理员执行全行结息与自动转存：自动转存 " + std::to_string(rolled) +
+                        " 笔，计息 " + std::to_string(count) + " 个账户，累计利息 " + formatMoney(totalInterest) + " 元");
+            std::cout << "【成功】全行日终批处理完成！\n到期自动转存笔数: " << rolled
+                      << "\n计结利息账户数:   " << count
+                      << "\n累计利息发生额:   " << formatMoney(totalInterest) << " 元\n";
         } else if (choice == "7") {
-            std::cout << "请输入筛选账号 (输入 0 查询全行流水): ";
-            long long aid;
-            std::cin >> aid;
-            auto txs = bank.queryTransactions(aid);
-            std::cout << "\n-------------------------- 全行交易流水 --------------------------\n";
-            for (const auto *t : txs) {
-                std::cout << "#" << t->getId() << " [" << t->getDatetime() << "] "
-                          << txTypeStr(t->getType()) << " "
-                          << formatMoney(t->getAmount()) << " 元 "
-                          << "(付款:" << t->getFromAccountId() << " -> 收款:" << t->getToAccountId() << ") "
-                          << "快照余额:" << formatMoney(t->getBalanceSnapshot()) << " 元 | 备注: "
-                          << t->getRemark() << "\n";
+            std::cout << "\n--- 当前全行执行利率 ---\n";
+            std::cout << "  [1] 活期年利率:       " << formatMoney(bank.getCurrentRateX10000()) << "%\n";
+            std::cout << "  [2] 定期 3 个月年利率: " << formatMoney(bank.getFixedRateX10000(3)) << "%\n";
+            std::cout << "  [3] 定期 1 年年利率:   " << formatMoney(bank.getFixedRateX10000(12)) << "%\n";
+            std::cout << "  [4] 定期 3 年年利率:   " << formatMoney(bank.getFixedRateX10000(36)) << "%\n";
+            std::cout << "  [5] 信用账户日利率:   " << formatMoney(bank.getCreditDailyRateX10000()) << "%\n";
+            std::cout << "请选择要调整的利率档位 [1-5，0返回]: ";
+            std::string sub;
+            if (!readToken(sub) || sub == "0") continue;
+            std::cout << "请输入新利率百分比（如输入 1.85 代表 1.85%，将实时生效）: ";
+            std::string rateStr;
+            if (!readToken(rateStr)) continue;
+            long long rateX10000 = 0;
+            if (!parseYuanToCents(rateStr, rateX10000)) {
+                std::cout << "【错误】利率格式不合法！\n";
+                continue;
+            }
+            try {
+                if (sub == "1") bank.setCurrentRate(rateX10000);
+                else if (sub == "2") bank.setFixedRate(3, rateX10000);
+                else if (sub == "3") bank.setFixedRate(12, rateX10000);
+                else if (sub == "4") bank.setFixedRate(36, rateX10000);
+                else if (sub == "5") bank.setCreditDailyRate(rateX10000);
+                else {
+                    std::cout << "无效档位。\n";
+                    continue;
+                }
+                Logger::log("管理员 " + std::to_string(admin->getId()) + " 调整档位 [" + sub +
+                            "] 利率为 " + formatMoney(rateX10000) + "%");
+                std::cout << "【成功】利率已调整为 " << formatMoney(rateX10000) << "% 并实时生效！\n";
+            } catch (const BankException &e) {
+                std::cout << "【失败】" << e.what() << "\n";
             }
         } else if (choice == "8") {
+            queryTransactionsInteractive(bank, 0, true);
+        } else if (choice == "9") {
             std::cout << "\n------------------------ 系统审计日志 ------------------------\n";
             auto logs = Logger::getAllLogs();
             if (logs.empty()) {
@@ -440,36 +633,47 @@ static void adminMenu(Bank &bank, User *admin, Storage &storage) {
                     std::cout << line << "\n";
                 }
             }
-        } else if (choice == "9") {
+        } else if (choice == "10") {
             std::cout << "确定要清空全部系统日志吗？(y/n): ";
             std::string confirm;
-            std::cin >> confirm;
-            if (confirm == "y" || confirm == "Y") {
+            if (readToken(confirm) && (confirm == "y" || confirm == "Y")) {
                 Logger::clearAllLogs();
                 std::cout << "【成功】系统审计日志已清空！\n";
             }
-        } else if (choice == "10") {
-            long long totalDep = 0;
-            int normalCount = 0;
-            int frozenCount = 0;
+        } else if (choice == "11") {
+            long long curTotal = 0, fixTotal = 0, creditDebtTotal = 0;
+            int curCnt = 0, fixCnt = 0, crCnt = 0, normalCount = 0, frozenCount = 0;
             for (const auto &[aid, acc] : bank.getAccounts()) {
-                totalDep += acc->getBalance();
                 if (acc->getStatus() == AccountStatus::NORMAL) normalCount++;
                 else if (acc->getStatus() == AccountStatus::FROZEN) frozenCount++;
+
+                if (acc->getAccountType() == AccountType::SAVINGS) {
+                    curCnt++;
+                    curTotal += acc->getBalance();
+                } else if (acc->getAccountType() == AccountType::FIXED) {
+                    fixCnt++;
+                    fixTotal += acc->getBalance();
+                } else if (auto *cr = dynamic_cast<CreditAccount *>(acc.get())) {
+                    crCnt++;
+                    creditDebtTotal += cr->getDebt();
+                }
             }
+            int totalAcc = static_cast<int>(bank.getAccounts().size());
+            auto pct = [&](int n) -> int { return totalAcc > 0 ? (n * 100 / totalAcc) : 0; };
             int custCount = 0;
             for (const auto &[uid, user] : bank.getUsers()) {
                 if (user->role() == "Customer") custCount++;
             }
             std::cout << "\n================= 全行业务指标统计报表 =================\n";
-            std::cout << "  全行储蓄存款总额: " << formatMoney(totalDep) << " 元\n";
-            std::cout << "  开立账户总数:     " << bank.getAccounts().size() << " 个\n";
-            std::cout << "  正常状态账户:     " << normalCount << " 个\n";
-            std::cout << "  冻结监管账户:     " << frozenCount << " 个\n";
+            std::cout << "  活期储蓄总额:     " << formatMoney(curTotal) << " 元  (" << curCnt << "户, 占" << pct(curCnt) << "%)\n";
+            std::cout << "  定期存款总额:     " << formatMoney(fixTotal) << " 元  (" << fixCnt << "户, 占" << pct(fixCnt) << "%)\n";
+            std::cout << "  信用透支欠款总额: " << formatMoney(creditDebtTotal) << " 元  (" << crCnt << "户, 占" << pct(crCnt) << "%)\n";
+            std::cout << "  全行储蓄存款总额: " << formatMoney(curTotal + fixTotal) << " 元\n";
+            std::cout << "  开立账户总数:     " << totalAcc << " 个 (正常 " << normalCount << " / 冻结 " << frozenCount << ")\n";
             std::cout << "  注册客户总人数:   " << custCount << " 位\n";
             std::cout << "  累计交易流水笔数: " << bank.getTransactions().size() << " 笔\n";
             std::cout << "========================================================\n";
-        } else if (choice == "11") {
+        } else if (choice == "12") {
             storage.save(bank);
             Logger::log("管理员保存全行数据至本地存储");
             std::cout << "【成功】全行数据已成功保存至本地文件！\n";
@@ -481,11 +685,11 @@ static void adminMenu(Bank &bank, User *admin, Storage &storage) {
 
 // ---------------- 答辩自动化测试演示 ----------------
 static void runAutomatedTest() {
-    printHeader("执行全流程自动化功能回归测试");
+    printHeader("执行全流程自动化功能回归测试（覆盖全计划用例）");
     Bank bank;
     seedDefaultData(bank);
 
-    std::cout << ">>> 1. 登录验证测试...\n";
+    std::cout << ">>> 1. 登录验证测试 (T06)...\n";
     try {
         bank.login(20001, "wrongpass");
     } catch (const AuthFail &e) {
@@ -494,17 +698,14 @@ static void runAutomatedTest() {
     User *u = bank.login(20001, "zs123456");
     std::cout << "    [PASS] 正确密码登录成功: " << u->getName() << "\n";
 
-    std::cout << "\n>>> 2. 存取款与转账测试...\n";
+    std::cout << "\n>>> 2. 活期存取款与原子转账测试 (T01/T02/T03/T05)...\n";
     long long acc1 = 62001;
     long long acc2 = 62002;
     bank.deposit(acc1, 50000, "柜面存款测试");
-    std::cout << "    [PASS] 账号 62001 存入 500.00 元\n";
     bank.withdraw(acc1, 20000, "ATM取款测试");
-    std::cout << "    [PASS] 账号 62001 取出 200.00 元\n";
     bank.transfer(acc1, acc2, 30000, "同行转账测试");
-    std::cout << "    [PASS] 账号 62001 向 62002 转账 300.00 元\n";
+    std::cout << "    [PASS] 活期存取转完成，62001余额: " << formatMoney(bank.findAccount(acc1)->getBalance()) << " 元\n";
 
-    std::cout << "\n>>> 3. 异常边界校验测试...\n";
     try {
         bank.withdraw(acc1, 99999900, "大额透支");
     } catch (const InsufficientBalance &e) {
@@ -516,17 +717,52 @@ static void runAutomatedTest() {
         std::cout << "    [PASS] 成功拦截负数金额: " << e.what() << "\n";
     }
 
-    std::cout << "\n>>> 4. 结息测试...\n";
-    long long interest = bank.settleInterest(acc1);
-    std::cout << "    [PASS] 账号 62001 本次结息: " << formatMoney(interest) << " 元\n";
+    std::cout << "\n>>> 3. 定期账户多态计息与自动转存测试 (T08/T09)...\n";
+    Date fixOpen(2026, 1, 1);
+    long long fixEarlyId = bank.openFixedAccount(20001, 1000000, 12, false, fixOpen); // 1万元 1年定期
+    long long earlyPayout = bank.withdrawFixed(fixEarlyId, fixOpen.addDays(7));        // 存7天提前支取
+    std::cout << "    [PASS] 1万元定期存7天提前支取按活期计息实付: " << formatMoney(earlyPayout)
+              << " 元 (含活期7天利息 " << formatMoney(earlyPayout - 1000000) << " 元)\n";
 
-    std::cout << "\n>>> 5. 存储持久化与读档测试...\n";
-    TextFileStorage storage("data/test_users.txt", "data/test_accounts.txt", "data/test_tx.txt");
-    storage.save(bank);
+    long long fixRenewId = bank.openFixedAccount(20001, 1000000, 12, true, Date(2025, 1, 1)); // 到期转存
+    int rolled = bank.processMaturityRollovers(Date(2026, 1, 2));
+    std::cout << "    [PASS] 定期到期自动转存触发 " << rolled << " 次，本息滚存后余额: "
+              << formatMoney(bank.findAccount(fixRenewId)->getBalance()) << " 元\n";
+
+    std::cout << "\n>>> 4. 信用账户透支、还款与按日计息测试 (T10/T11)...\n";
+    Date crOpen(2026, 10, 1);
+    long long creditId = bank.openCreditAccount(20001, 50000, crOpen); // 500元额度
+    try {
+        bank.withdraw(creditId, 60000, "超额消费");
+    } catch (const InsufficientBalance &e) {
+        std::cout << "    [PASS] 成功拦截信用超额透支: " << e.what() << "\n";
+    }
+    bank.withdraw(creditId, 10000, "信用消费100元");
+    bank.deposit(creditId, 6000, "还款60元");
+    auto *crPtr = dynamic_cast<CreditAccount *>(bank.findAccount(creditId));
+    long long crInterest = bank.settleInterest(creditId, crOpen.addDays(10));
+    std::cout << "    [PASS] 欠款100还60后欠款 40.00 元，10天透支利息 "
+              << formatMoney(crInterest) << " 元，总欠款: " << formatMoney(crPtr->getDebt()) << " 元\n";
+
+    std::cout << "\n>>> 5. 修改信息、管理员调利率与多条件流水查询测试 (F04/Y02/Y04)...\n";
+    bank.updateUserInfo(20001, "张三丰", "13900000001");
+    bank.changeUserPassword(20001, "zs123456", "newpass888");
+    bank.setCurrentRate(50); // 活期调高至 0.50%
+    auto trfTxs = bank.queryTransactionsFiltered(acc1, 3, "", "");
+    std::cout << "    [PASS] 用户信息与密码修改成功，活期利率调至 0.50%，62001 转账流水数: " << trfTxs.size() << "\n";
+
+    std::cout << "\n>>> 6. 多账户类型与利率持久化重载验证 (T07/T13)...\n";
+    TextFileStorage testStorage("data/test_users.txt", "data/test_accounts.txt", "data/test_tx.txt");
+    testStorage.save(bank);
     Bank reloaded;
-    storage.load(reloaded);
-    bool ok = reloaded.findAccount(acc1)->getBalance() == bank.findAccount(acc1)->getBalance();
-    std::cout << (ok ? "    [PASS] 数据重载一致性比对通过！\n" : "    [FAIL] 数据重载失败！\n");
+    testStorage.load(reloaded);
+    bool ok = reloaded.findUser(20001)->getName() == "张三丰" &&
+              reloaded.findAccount(acc1)->getBalance() == bank.findAccount(acc1)->getBalance() &&
+              reloaded.findAccount(fixRenewId)->getBalance() == bank.findAccount(fixRenewId)->getBalance() &&
+              reloaded.findAccount(creditId)->getBalance() == bank.findAccount(creditId)->getBalance() &&
+              reloaded.getCurrentRateX10000() == 50;
+    std::cout << (ok ? "    [PASS] 三类账户、自定义利率及用户信息重载 100% 一致！\n"
+                     : "    [FAIL] 数据重载验证失败！\n");
     std::cout << "================ 全流程测试全部通过 ================\n";
 }
 
@@ -545,36 +781,38 @@ int main() {
         storage.save(bank);
     }
 
+    int rolled = bank.processMaturityRollovers(Date::today());
+    if (rolled > 0) {
+        Logger::log("系统启动批处理：自动完成 " + std::to_string(rolled) + " 笔到期定期存款转存");
+        storage.save(bank);
+    }
+
     while (true) {
-        printHeader("银行综合业务管理系统");
-        std::cout << "  [1] 用户登录\n";
-        std::cout << "  [2] 自动化功能回归演示\n";
+        printHeader("银行综合业务管理系统 (控制台完整版)");
+        std::cout << "  [1] 用户登录（客户 / 系统管理员）\n";
+        std::cout << "  [2] 自动化功能回归演示（覆盖 F01-F10 / X01-X04 / Y01-Y06）\n";
         std::cout << "  [0] 退出系统\n";
         std::cout << "------------------------------------------------------\n";
         std::cout << "请选择操作 [0-2]: ";
 
         std::string choice;
-        if (!(std::cin >> choice)) {
-            break;
-        }
-        choice = cleanInput(choice);
+        if (!readToken(choice)) break;
 
         if (choice == "0") {
             storage.save(bank);
-            Logger::log("控制台端正常退出并保存数据");
+            Logger::log("系统正常退出并保存数据");
             std::cout << "数据已安全存盘，感谢使用！再见。\n";
             break;
         } else if (choice == "1") {
-            std::cout << "\n请输入用户账号 (ID): ";
             long long uid;
-            std::cin >> uid;
+            if (!readLongLong("\n请输入用户账号 (ID): ", uid)) continue;
             std::cout << "请输入登录密码: ";
             std::string pwd;
-            std::cin >> pwd;
+            if (!readToken(pwd)) continue;
 
             try {
                 User *user = bank.login(uid, pwd);
-                Logger::log("用户 " + std::to_string(uid) + " 在控制台登录成功");
+                Logger::log("用户 " + std::to_string(uid) + " 登录成功");
                 std::cout << "登录成功！欢迎，" << user->getName() << "（角色：" << user->role() << "）\n";
 
                 if (user->role() == "Admin") {

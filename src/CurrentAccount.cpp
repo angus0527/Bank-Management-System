@@ -31,7 +31,8 @@ AccountType CurrentAccount::getAccountType() const {
 std::string CurrentAccount::serialize() const {
     std::string s = "A|" + std::to_string(accountId) + "|C|" + std::to_string(ownerId) + "|" +
                     std::to_string(balance) + "|" + openDate.toString() + "|" +
-                    std::to_string(rateX10000) + "|0|0|0|0|0|" + lastSettleDate.toString();
+                    std::to_string(rateX10000) + "|0|0|0|0|0|" + lastSettleDate.toString() + "|" +
+                    std::to_string(static_cast<int>(status));
     return s;
 }
 

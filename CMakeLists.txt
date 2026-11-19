@@ -16,6 +16,10 @@ add_executable(BankManage
         src/Account.cpp
         include/CurrentAccount.h
         src/CurrentAccount.cpp
+        include/FixedAccount.h
+        src/FixedAccount.cpp
+        include/CreditAccount.h
+        src/CreditAccount.cpp
         include/User.h
         src/User.cpp
         include/Transaction.h

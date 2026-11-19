@@ -9,7 +9,7 @@ enum class TransactionType {
 };
 
 // 一条交易流水
-// 金额、快照一律 long long "分"；账号 0 表示"无"（如存款的付款方）
+// 金额、快照一律 long long "分"；账号 0 表示"无"
 class Transaction {
     long long id;
     std::string datetime;         // "2026-10-29 19:00:05"

@@ -6,7 +6,9 @@
 #include <vector>
 
 #include "Bank.h"
+#include "CreditAccount.h"
 #include "CurrentAccount.h"
+#include "FixedAccount.h"
 
 static std::vector<std::string> split(const std::string &line, char sep) {
     std::vector<std::string> res;
@@ -28,6 +30,20 @@ static std::string resolvePath(const std::string &path) {
         return p.string();
     }
     return path;
+}
+
+static AccountStatus parseStatusField(const std::string &s) {
+    if (s == "2") return AccountStatus::FROZEN;
+    if (s == "3") return AccountStatus::CLOSED;
+    return AccountStatus::NORMAL;
+}
+
+static std::string deriveRatesPath(const std::string &usersPath) {
+    std::filesystem::path p(usersPath);
+    if (p.has_parent_path()) {
+        return (p.parent_path() / "rates.txt").string();
+    }
+    return "rates.txt";
 }
 
 TextFileStorage::TextFileStorage(std::string usersFile, std::string accountsFile, std::string txFile)
@@ -104,18 +120,50 @@ void TextFileStorage::loadAccounts(Bank &bank) {
         Date openDate = Date::fromString(f[5]);
         long long rate = std::stoll(f[6]);
 
+        std::unique_ptr<Account> acc;
         if (f[2] == "C") {
-            auto acc = std::make_unique<CurrentAccount>(id, ownerId, balance, openDate, rate);
+            auto cur = std::make_unique<CurrentAccount>(id, ownerId, balance, openDate, rate);
             if (f.size() >= 13 && !f[12].empty()) {
-                acc->setLastSettleDate(Date::fromString(f[12]));
+                cur->setLastSettleDate(Date::fromString(f[12]));
             }
+            if (f.size() >= 14 && !f[13].empty()) {
+                cur->setStatus(parseStatusField(f[13]));
+            }
+            acc = std::move(cur);
+        } else if (f[2] == "F" && f.size() >= 10) {
+            int termMonths = std::stoi(f[7]);
+            Date maturityDate = Date::fromString(f[8]);
+            bool autoRenew = (f[9] == "1");
+            long long curRate = (f.size() >= 13 && !f[12].empty()) ? std::stoll(f[12]) : bank.getCurrentRateX10000();
+            auto fix = std::make_unique<FixedAccount>(id, ownerId, balance, openDate, termMonths,
+                                                      maturityDate, rate, autoRenew, curRate);
+            if (f.size() >= 14 && !f[13].empty()) {
+                fix->setStatus(parseStatusField(f[13]));
+            }
+            acc = std::move(fix);
+        } else if (f[2] == "X" && f.size() >= 11) {
+            long long creditLimit = std::stoll(f[10]);
+            auto cr = std::make_unique<CreditAccount>(id, ownerId, balance, openDate, creditLimit, rate);
+            if (f.size() >= 13 && !f[12].empty()) {
+                cr->setLastSettleDate(Date::fromString(f[12]));
+            }
+            if (f.size() >= 14 && !f[13].empty()) {
+                cr->setStatus(parseStatusField(f[13]));
+            }
+            acc = std::move(cr);
+        }
+
+        if (acc) {
+            AccountStatus st = acc->getStatus();
             bank.addAccount(std::move(acc));
-            try {
-                User *u = bank.findUser(ownerId);
-                if (auto *cust = dynamic_cast<Customer *>(u)) {
-                    cust->addAccount(id);
+            if (st != AccountStatus::CLOSED) {
+                try {
+                    User *u = bank.findUser(ownerId);
+                    if (auto *cust = dynamic_cast<Customer *>(u)) {
+                        cust->addAccount(id);
+                    }
+                } catch (...) {
                 }
-            } catch (...) {
             }
         }
     }
@@ -151,9 +199,29 @@ void TextFileStorage::save(const Bank &bank) {
     saveUsers(bank);
     saveAccounts(bank);
     saveTransactions(bank);
+
+    std::ofstream rOut(deriveRatesPath(usersPath));
+    if (rOut.is_open()) {
+        rOut << "R|" << bank.getCurrentRateX10000() << "|"
+             << bank.getFixedRateX10000(3) << "|"
+             << bank.getFixedRateX10000(12) << "|"
+             << bank.getFixedRateX10000(36) << "|"
+             << bank.getCreditDailyRateX10000() << "\n";
+    }
 }
 
 void TextFileStorage::load(Bank &bank) {
+    std::ifstream rIn(deriveRatesPath(usersPath));
+    if (rIn.is_open()) {
+        std::string line;
+        if (std::getline(rIn, line)) {
+            auto f = split(line, '|');
+            if (f.size() >= 6 && f[0] == "R") {
+                bank.initRates(std::stoll(f[1]), std::stoll(f[2]), std::stoll(f[3]),
+                               std::stoll(f[4]), std::stoll(f[5]));
+            }
+        }
+    }
     loadUsers(bank);
     loadAccounts(bank);
     loadTransactions(bank);
