@@ -1,7 +1,10 @@
 #include "../include/Logger.h"
 
+#include <iomanip>
+
 std::string Logger::path = "data/logs.txt";
 
+// 调用 C++17 chrono 系统时钟并转换为本地日历时间后格式化输出
 std::string Logger::getCurrentTime() {
     auto now = std::chrono::system_clock::now();
     auto now_ms = std::chrono::system_clock::to_time_t(now);
@@ -12,6 +15,7 @@ std::string Logger::getCurrentTime() {
     return ss.str();
 }
 
+// 写入一条审计日志：先用 filesystem 补全父目录防止 ofstream 静默打开失败，再以追加模式写文件
 void Logger::log(const std::string &message) {
     std::filesystem::path p(path);
     if (p.has_parent_path()) {
@@ -22,6 +26,7 @@ void Logger::log(const std::string &message) {
     os.close();
 }
 
+// 按行读出 logs.txt 中的全部有效日志内容
 std::vector<std::string> Logger::getAllLogs() {
     auto infstream = std::ifstream(path);
     std::vector<std::string> logs;
@@ -34,6 +39,7 @@ std::vector<std::string> Logger::getAllLogs() {
     return logs;
 }
 
+// 清空日志文件
 void Logger::clearAllLogs() {
     auto os = std::ofstream(path, std::ios::trunc);
     os.close();

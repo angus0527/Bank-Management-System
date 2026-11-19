@@ -18,6 +18,7 @@
 #include <windows.h>
 #endif
 
+// 清洗终端输入：剥除首部可能混入的 UTF-8 BOM (0xEF 0xBB 0xBF) 及首尾空格、制表符、回车换行
 static std::string cleanInput(std::string s) {
     while (!s.empty() && (static_cast<unsigned char>(s.front()) == 0xEF ||
                           static_cast<unsigned char>(s.front()) == 0xBB ||
@@ -31,6 +32,7 @@ static std::string cleanInput(std::string s) {
     return s;
 }
 
+// 安全读取一个输入词元：遇到 EOF 或流异常时返回 false，避免菜单死循环
 static bool readToken(std::string &out) {
     std::string raw;
     if (!(std::cin >> raw)) {
@@ -40,6 +42,7 @@ static bool readToken(std::string &out) {
     return true;
 }
 
+// 安全读取 64 位整数（账号/存期等），若输入非纯数字直接拦截提示，防止污染 std::cin 状态
 static bool readLongLong(const std::string &prompt, long long &out) {
     std::cout << prompt;
     std::string s;
@@ -59,6 +62,7 @@ static bool readLongLong(const std::string &prompt, long long &out) {
     }
 }
 
+// 将字符串金额（元）安全换算为 64 位整数“分”：限制非负、最多两位小数，并用 llround 四舍五入防浮点误差
 static bool parseYuanToCents(const std::string &str, long long &cents) {
     if (str.empty()) return false;
     try {
@@ -101,6 +105,7 @@ static void printHeader(const std::string &title) {
     std::cout << "======================================================\n";
 }
 
+// 格式化打印流水表格
 static void printTransactionTable(const std::vector<const Transaction *> &txs) {
     std::cout << "\n-------------------------- 交易流水记录 (" << txs.size() << " 条) --------------------------\n";
     std::cout << std::left << std::setw(6) << "流水号"
@@ -124,6 +129,7 @@ static void printTransactionTable(const std::vector<const Transaction *> &txs) {
     }
 }
 
+// 交互式多条件流水查询：依次采集账号、交易类型与起止日期并调用 Bank::queryTransactionsFiltered
 static void queryTransactionsInteractive(const Bank &bank, long long defaultAid, bool allowAll) {
     long long aid = defaultAid;
     if (allowAll) {
@@ -157,6 +163,7 @@ static void queryTransactionsInteractive(const Bank &bank, long long defaultAid,
     }
 }
 
+// 首次运行无数据文件时自动初始化测试管理员（10001）与示例客户（20001/20002）
 static void seedDefaultData(Bank &bank) {
     bank.addUser(std::make_unique<Admin>(10001, "admin", "admin123"));
     bank.addUser(std::make_unique<Customer>(20001, "张三", "zs123456", "13800000001"));
@@ -165,7 +172,7 @@ static void seedDefaultData(Bank &bank) {
     bank.openAccount(20002, 30004, Date(2026, 10, 15));
 }
 
-// ---------------- 客户菜单逻辑 ----------------
+// 客户服务中心交互循环：提供三类账户开户、存取转、定期支取、结息、销户、流水筛选、改密与 CSV 导出
 static void customerMenu(Bank &bank, Customer *cust, Storage &storage) {
     while (true) {
         printHeader("客户服务中心 - 欢迎您，" + cust->getName() + " (ID: " + std::to_string(cust->getId()) + ")");
@@ -462,7 +469,7 @@ static void customerMenu(Bank &bank, Customer *cust, Storage &storage) {
     }
 }
 
-// ---------------- 管理员菜单逻辑 ----------------
+// 管理员控制台交互循环：提供全行账户管理、冻结解冻、日终结息转存批处理、利率调控与统计报表
 static void adminMenu(Bank &bank, User *admin, Storage &storage) {
     while (true) {
         printHeader("系统管理员控制台 - 操作员: " + admin->getName() + " (ID: " + std::to_string(admin->getId()) + ")");
@@ -683,13 +690,13 @@ static void adminMenu(Bank &bank, User *admin, Storage &storage) {
     }
 }
 
-// ---------------- 答辩自动化测试演示 ----------------
+// 全流程自动化功能回归脚本：依次覆盖登录鉴权、活期存取转、定期提前支取与自动转存、信用透支计息、改密调息及持久化重载
 static void runAutomatedTest() {
-    printHeader("执行全流程自动化功能回归测试（覆盖全计划用例）");
+    printHeader("执行全流程自动化功能回归测试");
     Bank bank;
     seedDefaultData(bank);
 
-    std::cout << ">>> 1. 登录验证测试 (T06)...\n";
+    std::cout << ">>> 1. 登录验证测试...\n";
     try {
         bank.login(20001, "wrongpass");
     } catch (const AuthFail &e) {
@@ -698,7 +705,7 @@ static void runAutomatedTest() {
     User *u = bank.login(20001, "zs123456");
     std::cout << "    [PASS] 正确密码登录成功: " << u->getName() << "\n";
 
-    std::cout << "\n>>> 2. 活期存取款与原子转账测试 (T01/T02/T03/T05)...\n";
+    std::cout << "\n>>> 2. 活期存取款与原子转账测试...\n";
     long long acc1 = 62001;
     long long acc2 = 62002;
     bank.deposit(acc1, 50000, "柜面存款测试");
@@ -717,7 +724,7 @@ static void runAutomatedTest() {
         std::cout << "    [PASS] 成功拦截负数金额: " << e.what() << "\n";
     }
 
-    std::cout << "\n>>> 3. 定期账户多态计息与自动转存测试 (T08/T09)...\n";
+    std::cout << "\n>>> 3. 定期账户多态计息与自动转存测试...\n";
     Date fixOpen(2026, 1, 1);
     long long fixEarlyId = bank.openFixedAccount(20001, 1000000, 12, false, fixOpen); // 1万元 1年定期
     long long earlyPayout = bank.withdrawFixed(fixEarlyId, fixOpen.addDays(7));        // 存7天提前支取
@@ -729,7 +736,7 @@ static void runAutomatedTest() {
     std::cout << "    [PASS] 定期到期自动转存触发 " << rolled << " 次，本息滚存后余额: "
               << formatMoney(bank.findAccount(fixRenewId)->getBalance()) << " 元\n";
 
-    std::cout << "\n>>> 4. 信用账户透支、还款与按日计息测试 (T10/T11)...\n";
+    std::cout << "\n>>> 4. 信用账户透支、还款与按日计息测试...\n";
     Date crOpen(2026, 10, 1);
     long long creditId = bank.openCreditAccount(20001, 50000, crOpen); // 500元额度
     try {
@@ -744,14 +751,14 @@ static void runAutomatedTest() {
     std::cout << "    [PASS] 欠款100还60后欠款 40.00 元，10天透支利息 "
               << formatMoney(crInterest) << " 元，总欠款: " << formatMoney(crPtr->getDebt()) << " 元\n";
 
-    std::cout << "\n>>> 5. 修改信息、管理员调利率与多条件流水查询测试 (F04/Y02/Y04)...\n";
+    std::cout << "\n>>> 5. 修改信息、管理员调利率与多条件流水查询测试...\n";
     bank.updateUserInfo(20001, "张三丰", "13900000001");
     bank.changeUserPassword(20001, "zs123456", "newpass888");
     bank.setCurrentRate(50); // 活期调高至 0.50%
     auto trfTxs = bank.queryTransactionsFiltered(acc1, 3, "", "");
     std::cout << "    [PASS] 用户信息与密码修改成功，活期利率调至 0.50%，62001 转账流水数: " << trfTxs.size() << "\n";
 
-    std::cout << "\n>>> 6. 多账户类型与利率持久化重载验证 (T07/T13)...\n";
+    std::cout << "\n>>> 6. 多账户类型与利率持久化重载验证...\n";
     TextFileStorage testStorage("data/test_users.txt", "data/test_accounts.txt", "data/test_tx.txt");
     testStorage.save(bank);
     Bank reloaded;
@@ -766,6 +773,7 @@ static void runAutomatedTest() {
     std::cout << "================ 全流程测试全部通过 ================\n";
 }
 
+// 程序入口：配置控制台 UTF-8 编码，装载磁盘数据，触发到期定期转存批处理，随后进入主菜单交互循环
 int main() {
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
@@ -790,7 +798,7 @@ int main() {
     while (true) {
         printHeader("银行综合业务管理系统 (控制台完整版)");
         std::cout << "  [1] 用户登录（客户 / 系统管理员）\n";
-        std::cout << "  [2] 自动化功能回归演示（覆盖 F01-F10 / X01-X04 / Y01-Y06）\n";
+        std::cout << "  [2] 自动化功能回归演示（全流程自检脚本）\n";
         std::cout << "  [0] 退出系统\n";
         std::cout << "------------------------------------------------------\n";
         std::cout << "请选择操作 [0-2]: ";
