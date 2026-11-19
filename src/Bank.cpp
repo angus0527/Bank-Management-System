@@ -6,6 +6,7 @@
 #include "CurrentAccount.h"
 #include "FixedAccount.h"
 
+// 校验并获取客户指针（开户专用，管理员不能开户）
 Customer *Bank::findCustomer(long long ownerId) {
     User *u = findUser(ownerId);
     if (u == nullptr) {
@@ -20,6 +21,7 @@ Customer *Bank::findCustomer(long long ownerId) {
     return customer;
 }
 
+// 用户登录验证，成功返回 User 指针，失败返回 nullptr
 User *Bank::login(long long userId, const std::string &password) {
     auto it = users.find(userId);
     if (it == users.end() || !it->second->verifyPassword(password)) {
@@ -29,6 +31,7 @@ User *Bank::login(long long userId, const std::string &password) {
     return it->second.get();
 }
 
+// 注册新客户，自动分配用户 ID 并加密保存密码
 long long Bank::registerCustomer(const std::string &name, const std::string &password, const std::string &phone) {
     if (name.empty() || password.empty()) {
         std::cout << "注册失败：姓名和密码不能为空。\n";
@@ -39,6 +42,7 @@ long long Bank::registerCustomer(const std::string &name, const std::string &pas
     return id;
 }
 
+// 修改用户姓名与联系电话
 bool Bank::updateUserInfo(long long userId, const std::string &newName, const std::string &newPhone) {
     User *user = findUser(userId);
     if (user == nullptr) {
@@ -58,6 +62,7 @@ bool Bank::updateUserInfo(long long userId, const std::string &newName, const st
     return true;
 }
 
+// 校验原密码后修改登录密码
 bool Bank::changeUserPassword(long long userId, const std::string &oldPassword, const std::string &newPassword) {
     User *user = findUser(userId);
     if (user == nullptr) {
@@ -76,6 +81,7 @@ bool Bank::changeUserPassword(long long userId, const std::string &oldPassword, 
     return true;
 }
 
+// 开立活期账户并绑定到客户名下，成功返回新账号
 long long Bank::openAccount(long long ownerId, double initialDeposit, const Date &openDate) {
     Customer *customer = findCustomer(ownerId);
     if (customer == nullptr) return -1;
@@ -94,6 +100,7 @@ long long Bank::openAccount(long long ownerId, double initialDeposit, const Date
     return id;
 }
 
+// 开立定期账户（支持 3/12/36 个月），成功返回新账号
 long long Bank::openFixedAccount(long long ownerId, double initialDeposit, int termMonths,
                                  bool autoRenew, const Date &openDate) {
     Customer *customer = findCustomer(ownerId);
@@ -117,6 +124,7 @@ long long Bank::openFixedAccount(long long ownerId, double initialDeposit, int t
     return id;
 }
 
+// 开立信用账户，设置信用额度并绑定客户，成功返回新账号
 long long Bank::openCreditAccount(long long ownerId, double creditLimit, const Date &openDate) {
     Customer *customer = findCustomer(ownerId);
     if (customer == nullptr) return -1;
@@ -132,6 +140,7 @@ long long Bank::openCreditAccount(long long ownerId, double creditLimit, const D
     return id;
 }
 
+// 存款（信用账户为还款），入账并记流水
 bool Bank::deposit(long long accountId, double amount, const std::string &remark) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -144,6 +153,7 @@ bool Bank::deposit(long long accountId, double amount, const std::string &remark
     return true;
 }
 
+// 取款（信用账户为透支消费），扣款并记流水
 bool Bank::withdraw(long long accountId, double amount, const std::string &remark) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -225,6 +235,7 @@ bool Bank::transfer(long long fromAccountId, long long toAccountId, double amoun
     return true;
 }
 
+// 对指定账户结算截至 today 的利息并记录结息流水
 double Bank::settleInterest(long long accountId, const Date &today) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -246,6 +257,8 @@ double Bank::settleInterest(long long accountId, const Date &today) {
     return interest;
 }
 
+//把所有的定期账户续订
+// 批量处理全行已到期且开启自动转存的定期账户，返回转存笔数
 int Bank::processMaturityRollovers(const Date &today) {
     int count = 0;
     for (const auto &pair : accounts) {
@@ -263,6 +276,7 @@ int Bank::processMaturityRollovers(const Date &today) {
     return count;
 }
 
+// 冻结指定账户
 bool Bank::freezeAccount(long long accountId) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -273,6 +287,7 @@ bool Bank::freezeAccount(long long accountId) {
     return true;
 }
 
+// 解冻指定账户
 bool Bank::unfreezeAccount(long long accountId) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -283,6 +298,7 @@ bool Bank::unfreezeAccount(long long accountId) {
     return true;
 }
 
+// 销户：清零校验通过后从客户持卡列表中移除
 bool Bank::closeAccount(long long accountId) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -296,6 +312,7 @@ bool Bank::closeAccount(long long accountId) {
     return true;
 }
 
+// 调整全行活期年利率，并同步到现有活期及定期提前支取参照利率
 bool Bank::setCurrentRate(double rate) {
     if (rate < 0.0) {
         std::cout << "操作失败：利率不能为负。\n";
@@ -310,6 +327,7 @@ bool Bank::setCurrentRate(double rate) {
     return true;
 }
 
+// 调整指定存期（3/12/36个月）的定期年利率，并同步到对应定期账户
 bool Bank::setFixedRate(int termMonths, double rate) {
     if (rate < 0.0) {
         std::cout << "操作失败：利率不能为负。\n";
@@ -331,6 +349,7 @@ bool Bank::setFixedRate(int termMonths, double rate) {
     return true;
 }
 
+// 调整全行信用透支日利率，并同步到现有信用账户
 bool Bank::setCreditDailyRate(double rate) {
     if (rate < 0.0) {
         std::cout << "操作失败：利率不能为负。\n";
@@ -343,6 +362,7 @@ bool Bank::setCreditDailyRate(double rate) {
     return true;
 }
 
+// 按存期月数查询当前定期基准年利率
 double Bank::getFixedRate(int termMonths) const {
     if (termMonths == 3) return fixed3MRate;
     if (termMonths == 12) return fixed1YRate;
@@ -350,6 +370,7 @@ double Bank::getFixedRate(int termMonths) const {
     return 0.0;
 }
 
+// 启动读档时一次性恢复 5 档基准利率配置
 void Bank::initRates(double cur, double f3m, double f1y, double f3y, double cr) {
     currentRate = cur;
     fixed3MRate = f3m;
@@ -374,24 +395,28 @@ std::vector<const Transaction *> Bank::queryTransactions(long long accountId, in
     return result;
 }
 
+// 按账号查找账户指针，找不到返回 nullptr
 Account *Bank::findAccount(long long accountId) {
     auto it = accounts.find(accountId);
     if (it == accounts.end()) return nullptr;
     return it->second.get();
 }
 
+// 按用户 ID 查找用户指针，找不到返回 nullptr
 User *Bank::findUser(long long userId) {
     auto it = users.find(userId);
     if (it == users.end()) return nullptr;
     return it->second.get();
 }
 
+// 生成并追加一条新交易流水
 void Bank::recordTx(TransactionType type, long long fromId, long long toId, double amount,
                     double balanceSnapshot, const std::string &remark) {
     transactions.push_back(Transaction(nextTransactionId++, Date::nowDateTime(), type, fromId, toId,
                                        amount, balanceSnapshot, remark));
 }
 
+// 装载用户对象并顺延下一个可用用户 ID（读档用）
 bool Bank::addUser(std::unique_ptr<User> user) {
     long long id = user->getId();
     if (users.count(id) != 0) {
@@ -403,16 +428,20 @@ bool Bank::addUser(std::unique_ptr<User> user) {
     return true;
 }
 
+// 装载账户对象并顺延下一个可用账号（读档用）
 void Bank::addAccount(std::unique_ptr<Account> account) {
     long long id = account->getAccountId();
     if (id >= nextAccountId) nextAccountId = id + 1;
     accounts[id] = std::move(account);
 }
 
+// 装载流水记录并顺延下一个可用流水号（读档用）
 void Bank::addTransaction(const Transaction &t) {
     if (t.getId() >= nextTransactionId) nextTransactionId = t.getId() + 1;
     transactions.push_back(t);
 }
 
+// 手动设置发号器起始账号
 void Bank::setNextAccountId(long long id) { nextAccountId = id; }
+// 手动设置发号器起始流水号
 void Bank::setNextTransactionId(long long id) { nextTransactionId = id; }

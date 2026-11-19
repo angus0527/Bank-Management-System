@@ -17,6 +17,7 @@ double CurrentAccount::calcInterest(const Date &today) const {
     return round2(balance * rate * static_cast<double>(days) / 360.0);
 }
 
+// 活期结息：把应计利息并入余额，并把上次结息日更新为 today
 double CurrentAccount::settleInterest(const Date &today) {
     double interest = calcInterest(today);
     balance = round2(balance + interest);
@@ -24,6 +25,7 @@ double CurrentAccount::settleInterest(const Date &today) {
     return interest;
 }
 
+// 返回账户类型枚举（活期）
 AccountType CurrentAccount::getAccountType() const {
     return AccountType::SAVINGS;
 }
@@ -38,6 +40,7 @@ std::string CurrentAccount::serialize() const {
     return oss.str();
 }
 
+// 打印活期账户的详细信息（含年利率与上次结息日）
 void CurrentAccount::displayInfo() const {
     Account::displayInfo();
     std::cout << "【账户类型】: 活期\n";

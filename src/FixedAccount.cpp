@@ -3,6 +3,7 @@
 #include <cmath>
 #include <sstream>
 
+// 构造定期账户：校验存期（仅支持 3/12/36 个月）并计算到期日
 FixedAccount::FixedAccount(long long id, long long ownerId, double initialBalance,
                            const Date &openDate, int termMonths_, double rate_,
                            bool autoRenew_, double currentRate_)
@@ -17,11 +18,13 @@ FixedAccount::FixedAccount(long long id, long long ownerId, double initialBalanc
     }
 }
 
+// 定期账户禁止中途追加存款，直接返回 false
 bool FixedAccount::deposit(double /*amount*/) {
     std::cout << "操作失败：定期账户不支持中途追加存款。\n";
     return false;
 }
 
+// 定期支取：必须一次性全额取出，取出后余额归零
 bool FixedAccount::withdraw(double amount) {
     amount = round2(amount);
     if (amount <= 0.0) {
@@ -61,6 +64,7 @@ double FixedAccount::settleInterest(const Date &today) {
     return interest;
 }
 
+// 将定期账户格式化为 14 列单行文本，供存盘使用
 std::string FixedAccount::serialize() const {
     std::ostringstream oss;
     oss << "A|" << accountId << "|F|" << ownerId << "|"
@@ -71,6 +75,7 @@ std::string FixedAccount::serialize() const {
     return oss.str();
 }
 
+// 打印定期账户的存期、到期日及是否自动转存
 void FixedAccount::displayInfo() const {
     Account::displayInfo();
     std::cout << "【类型】: 定期（" << termMonths << "个月，到期日 " << maturityDate.toString()

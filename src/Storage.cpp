@@ -151,7 +151,7 @@ void TextFileStorage::loadAccounts(Bank &bank) {
             AccountStatus st = parseStatusField(f[13]);
             acc->setStatus(st);
             bank.addAccount(std::move(acc));
-            // 仅将未销户的账号回填进所属 Customer 的持卡列表，保证读档后名下卡号完整
+            // 未销户的账号才会进所属 Customer 的持卡列表
             if (st != AccountStatus::CLOSED) {
                 const auto &users = bank.getUsers();
                 auto it = users.find(ownerId);

@@ -47,6 +47,7 @@ static bool inputDouble(const std::string &prompt, double &val) {
     return false;
 }
 
+// 将交易类型枚举转为中文名称（导出 CSV 用）
 static std::string txTypeName(TransactionType t) {
     if (t == TransactionType::DEP) return "存款";
     if (t == TransactionType::WDR) return "取款";
@@ -54,6 +55,7 @@ static std::string txTypeName(TransactionType t) {
     return "结息";
 }
 
+// 将账户类型枚举转为中文名称（管理员总览用）
 static std::string accTypeName(AccountType t) {
     if (t == AccountType::SAVINGS) return "活期";
     if (t == AccountType::FIXED)   return "定期";
@@ -346,6 +348,7 @@ static void adminMenu(Bank &bank, User *admin) {
     }
 }
 
+// 程序主入口：初始化读档、自动处理到期定期转存、进入登录/注册主菜单
 int main() {
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);

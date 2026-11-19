@@ -75,6 +75,7 @@ double CreditAccount::settleInterest(const Date &today) {
     return interest;
 }
 
+// 返回账户类型枚举（信用账户）
 AccountType CreditAccount::getAccountType() const {
     return AccountType::CREDIT;
 }
@@ -90,6 +91,7 @@ std::string CreditAccount::serialize() const {
     return oss.str();
 }
 
+// 打印信用账户详情（额度、欠款、可用额度与日利率）
 void CreditAccount::displayInfo() const {
     Account::displayInfo();
     std::cout << "【账户类型】: 信用账户\n";
