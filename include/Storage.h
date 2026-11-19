@@ -23,6 +23,7 @@ private:
     std::string usersPath;         // 用户表文件路径
     std::string accountsPath;      // 账户表文件路径
     std::string transactionsPath;  // 流水表文件路径
+    std::string ratesPath;         // 利率配置文件路径
 
     // 按实体类别拆分保存逻辑
     void saveUsers(const Bank &bank) const;
@@ -38,7 +39,8 @@ public:
     // 构造函数：支持传入自定义路径（测试用），构造时会做跨目录路径自适应探测
     TextFileStorage(std::string usersFile = "data/users.txt",
                     std::string accountsFile = "data/accounts.txt",
-                    std::string txFile = "data/transactions.txt");
+                    std::string txFile = "data/transactions.txt",
+                    std::string ratesFile = "data/rates.txt");
 
     void load(Bank &bank) override;
     void save(const Bank &bank) override;

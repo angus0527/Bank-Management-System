@@ -32,21 +32,19 @@ static bool inputLongLong(const std::string &prompt, long long &val) {
     return false;
 }
 
-// 读取金额（元）并四舍五入转为“分”，避免浮点误差
-static bool inputCents(const std::string &prompt, long long &cents) {
+// 读取非负浮点数（金额、利率百分比）
+static bool inputDouble(const std::string &prompt, double &val) {
     std::cout << prompt;
-    double yuan = 0;
-    if (std::cin >> yuan) {
-        if (yuan < 0) {
-            std::cout << "金额不能为负数。\n";
+    if (std::cin >> val) {
+        if (val < 0.0) {
+            std::cout << "输入数值不能为负数。\n";
             return false;
         }
-        cents = static_cast<long long>(yuan * 100.0 + 0.5);
         return true;
     }
     if (std::cin.eof()) return false;
     clearCinLine();
-    std::cout << "金额格式有误，请输入数字。\n";
+    std::cout << "格式有误，请输入数字。\n";
     return false;
 }
 
@@ -73,11 +71,11 @@ static bool hasAccount(const Customer *cust, long long aid) {
 
 // 首次运行无数据时初始化默认管理员和两位测试客户
 static void seedDefaultData(Bank &bank) {
-    bank.addUser(std::make_unique<Admin>(10001, "admin", "admin123"));
-    bank.addUser(std::make_unique<Customer>(20001, "张三", "zs123456", "13800000001"));
-    bank.addUser(std::make_unique<Customer>(20002, "李四", "ls123456", "13800000002"));
-    bank.openAccount(20001, 100029, Date(2026, 10, 2));
-    bank.openAccount(20002, 30004, Date(2026, 10, 15));
+    bank.addUser(std::make_unique<Admin>(10001, "admin", User::encryptPassword("admin123")));
+    bank.addUser(std::make_unique<Customer>(20001, "张三", User::encryptPassword("zs123456"), "13800000001"));
+    bank.addUser(std::make_unique<Customer>(20002, "李四", User::encryptPassword("ls123456"), "13800000002"));
+    bank.openAccount(20001, 1000.29, Date(2026, 10, 2));
+    bank.openAccount(20002, 300.04, Date(2026, 10, 15));
 }
 
 // 按账号、类型、日期段筛选并调用 Transaction::display() 输出流水；cust 非空时仅展示本人账户流水
@@ -135,10 +133,11 @@ static void customerMenu(Bank &bank, Customer *cust) {
                 if (a != nullptr) a->displayInfo();
             }
         } else if (op == 2) {
-            long long aid, cents;
-            if (!inputLongLong("账号: ", aid) || !inputCents("存入/还款金额(元): ", cents)) continue;
-            if (bank.deposit(aid, cents, "柜面存入/还款")) {
-                Logger::log("账户 " + std::to_string(aid) + " 存入 " + formatMoney(cents) + " 元");
+            long long aid;
+            double amount;
+            if (!inputLongLong("账号: ", aid) || !inputDouble("存入/还款金额(元): ", amount)) continue;
+            if (bank.deposit(aid, amount, "柜面存入/还款")) {
+                Logger::log("账户 " + std::to_string(aid) + " 存入 " + formatMoney(amount) + " 元");
                 std::cout << "操作成功，当前余额: " << formatMoney(bank.findAccount(aid)->getBalance()) << " 元\n";
             }
         } else if (op == 3) {
@@ -148,53 +147,55 @@ static void customerMenu(Bank &bank, Customer *cust) {
             Account *a = bank.findAccount(aid);
             if (a == nullptr) { std::cout << "账户不存在。\n"; continue; }
             if (a->getAccountType() == AccountType::FIXED) {
-                long long payout = bank.withdrawFixed(aid);
-                if (payout >= 0) {
+                double payout = bank.withdrawFixed(aid);
+                if (payout >= 0.0) {
                     Logger::log("定期账户 " + std::to_string(aid) + " 支取 " + formatMoney(payout) + " 元");
                     std::cout << "定期全额支取成功，实付本息: " << formatMoney(payout) << " 元\n";
                 }
             } else {
-                long long cents;
-                if (!inputCents("取款/消费金额(元): ", cents)) continue;
-                if (bank.withdraw(aid, cents, "取款/消费")) {
-                    Logger::log("账户 " + std::to_string(aid) + " 支出 " + formatMoney(cents) + " 元");
+                double amount;
+                if (!inputDouble("取款/消费金额(元): ", amount)) continue;
+                if (bank.withdraw(aid, amount, "取款/消费")) {
+                    Logger::log("账户 " + std::to_string(aid) + " 支出 " + formatMoney(amount) + " 元");
                     std::cout << "操作成功，当前余额: " << formatMoney(a->getBalance()) << " 元\n";
                 }
             }
         } else if (op == 4) {
-            long long fromId, toId, cents;
+            long long fromId, toId;
+            double amount;
             if (!inputLongLong("付款账号: ", fromId) ||
                 !inputLongLong("收款账号: ", toId) ||
-                !inputCents("转账金额(元): ", cents)) continue;
+                !inputDouble("转账金额(元): ", amount)) continue;
             if (!hasAccount(cust, fromId)) { std::cout << "只能从本人名下账户转出。\n"; continue; }
-            if (bank.transfer(fromId, toId, cents, "同行转账")) {
-                Logger::log("转账 " + std::to_string(fromId) + " -> " + std::to_string(toId) + " " + formatMoney(cents) + " 元");
+            if (bank.transfer(fromId, toId, amount, "同行转账")) {
+                Logger::log("转账 " + std::to_string(fromId) + " -> " + std::to_string(toId) + " " + formatMoney(amount) + " 元");
                 std::cout << "转账成功！付款账户余额: " << formatMoney(bank.findAccount(fromId)->getBalance()) << " 元\n";
             }
         } else if (op == 5) {
             long long kind = 0;
             if (!inputLongLong("账户类型 (1=活期 2=定期 3=信用): ", kind)) continue;
             if (kind == 1) {
-                long long cents;
-                if (!inputCents("初始存款(元): ", cents)) continue;
-                long long nid = bank.openAccount(cust->getId(), cents);
+                double amount;
+                if (!inputDouble("初始存款(元): ", amount)) continue;
+                long long nid = bank.openAccount(cust->getId(), amount);
                 if (nid > 0) {
                     Logger::log("客户 " + std::to_string(cust->getId()) + " 开立活期账户 " + std::to_string(nid));
                     std::cout << "开户成功，账号: " << nid << "\n";
                 }
             } else if (kind == 2) {
-                long long term, cents, renew;
+                long long term, renew;
+                double amount;
                 if (!inputLongLong("存期月数 (3/12/36): ", term) ||
-                    !inputCents("定期存入金额(元): ", cents) ||
+                    !inputDouble("定期存入金额(元): ", amount) ||
                     !inputLongLong("到期自动转存? (1=是 0=否): ", renew)) continue;
-                long long nid = bank.openFixedAccount(cust->getId(), cents, static_cast<int>(term), renew == 1);
+                long long nid = bank.openFixedAccount(cust->getId(), amount, static_cast<int>(term), renew == 1);
                 if (nid > 0) {
                     Logger::log("客户 " + std::to_string(cust->getId()) + " 开立定期账户 " + std::to_string(nid));
                     std::cout << "定期开户成功，账号: " << nid << "\n";
                 }
             } else if (kind == 3) {
-                long long limit;
-                if (!inputCents("申请信用额度(元): ", limit)) continue;
+                double limit;
+                if (!inputDouble("申请信用额度(元): ", limit)) continue;
                 long long nid = bank.openCreditAccount(cust->getId(), limit);
                 if (nid > 0) {
                     Logger::log("客户 " + std::to_string(cust->getId()) + " 开立信用账户 " + std::to_string(nid));
@@ -205,8 +206,8 @@ static void customerMenu(Bank &bank, Customer *cust) {
             long long aid;
             if (!inputLongLong("结息账号: ", aid)) continue;
             if (!hasAccount(cust, aid)) { std::cout << "只能操作本人名下账户。\n"; continue; }
-            long long interest = bank.settleInterest(aid);
-            if (interest >= 0) {
+            double interest = bank.settleInterest(aid);
+            if (interest >= 0.0) {
                 std::cout << "结息完成，本次利息发生额: " << formatMoney(interest) << " 元\n";
             }
         } else if (op == 7) {
@@ -275,7 +276,7 @@ static void adminMenu(Bank &bank, User *admin) {
         if (op == 0) break;
 
         if (op == 1) {
-            long long curSum = 0, fixSum = 0, crDebt = 0;
+            double curSum = 0.0, fixSum = 0.0, crDebt = 0.0;
             int curN = 0, fixN = 0, crN = 0;
             for (const auto &pair : bank.getAccounts()) {
                 long long aid = pair.first;
@@ -312,23 +313,25 @@ static void adminMenu(Bank &bank, User *admin) {
             }
         } else if (op == 4) {
             int rolled = bank.processMaturityRollovers();
-            long long sumInt = 0;
+            double sumInt = 0.0;
             for (const auto &pair : bank.getAccounts()) {
                 if (pair.second->isNormal()) {
-                    long long interest = bank.settleInterest(pair.first);
-                    if (interest > 0) sumInt += interest;
+                    double interest = bank.settleInterest(pair.first);
+                    if (interest > 0.0) sumInt += interest;
                 }
             }
             std::cout << "全行结息完成：自动转存 " << rolled << " 笔，累计利息 " << formatMoney(sumInt) << " 元\n";
         } else if (op == 5) {
-            std::cout << "当前利率: 1=活期(" << formatMoney(bank.getCurrentRateX10000())
-                      << "%) 2=定3月(" << formatMoney(bank.getFixedRateX10000(3))
-                      << "%) 3=定1年(" << formatMoney(bank.getFixedRateX10000(12))
-                      << "%) 4=定3年(" << formatMoney(bank.getFixedRateX10000(36))
-                      << "%) 5=信用日息(" << formatMoney(bank.getCreditDailyRateX10000()) << "%)\n";
-            long long tier, newRate;
+            std::cout << "当前利率: 1=活期(" << formatMoney(bank.getCurrentRate() * 100.0)
+                      << "%) 2=定3月(" << formatMoney(bank.getFixedRate(3) * 100.0)
+                      << "%) 3=定1年(" << formatMoney(bank.getFixedRate(12) * 100.0)
+                      << "%) 4=定3年(" << formatMoney(bank.getFixedRate(36) * 100.0)
+                      << "%) 5=信用日息(" << formatMoney(bank.getCreditDailyRate() * 100.0) << "%)\n";
+            long long tier;
+            double pct;
             if (!inputLongLong("修改哪一档 [1-5]: ", tier) ||
-                !inputCents("输入新利率百分比(如 1.75 代表 1.75%): ", newRate)) continue;
+                !inputDouble("输入新利率百分比(如 1.75 代表 1.75%): ", pct)) continue;
+            double newRate = pct / 100.0;
             bool ok = false;
             if (tier == 1) ok = bank.setCurrentRate(newRate);
             else if (tier == 2) ok = bank.setFixedRate(3, newRate);
@@ -368,25 +371,26 @@ static void runDemoTest() {
     if (b.login(20001, "wrong") == nullptr) {
         std::cout << "[PASS] 错误密码拦截\n";
     }
-    b.deposit(62001, 50000, "存款");
-    b.withdraw(62001, 20000, "取款");
-    b.transfer(62001, 62002, 30000, "转账");
-    if (!b.withdraw(62001, 99999900)) {
+    b.deposit(62001, 500.0, "存款");
+    b.withdraw(62001, 200.0, "取款");
+    b.transfer(62001, 62002, 300.0, "转账");
+    if (!b.withdraw(62001, 999999.0)) {
         std::cout << "[PASS] 余额不足拦截\n";
     }
 
-    long long fixId = b.openFixedAccount(20001, 1000000, 12, true, Date(2025, 1, 1));
+    long long fixId = b.openFixedAccount(20001, 10000.0, 12, true, Date(2025, 1, 1));
     b.processMaturityRollovers(Date(2026, 1, 2));
     std::cout << "[PASS] 1万定期到期转存余额: " << formatMoney(b.findAccount(fixId)->getBalance()) << " 元\n";
 
-    long long crId = b.openCreditAccount(20001, 50000, Date(2026, 10, 1));
-    b.withdraw(crId, 10000, "透支");
-    b.deposit(crId, 6000, "还款");
+    long long crId = b.openCreditAccount(20001, 500.0, Date(2026, 10, 1));
+    b.withdraw(crId, 100.0, "透支");
+    b.deposit(crId, 60.0, "还款");
     b.settleInterest(crId, Date(2026, 10, 11));
     CreditAccount *cr = dynamic_cast<CreditAccount *>(b.findAccount(crId));
     std::cout << "[PASS] 信用欠100还60计10天息后欠款: " << formatMoney(cr->getDebt()) << " 元\n";
 
-    TextFileStorage st("data/test/users.txt", "data/test/accounts.txt", "data/test/transactions.txt");
+    TextFileStorage st("data/test/users.txt", "data/test/accounts.txt",
+                       "data/test/transactions.txt", "data/test/rates.txt");
     st.save(b);
     Bank b2;
     st.load(b2);

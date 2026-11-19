@@ -18,33 +18,36 @@ enum class AccountType {
     FIXED = 3    // 定期存款账户
 };
 
-// 金额（分）→ "1234.56" 显示字符串
-std::string formatMoney(long long cents);
+// 四舍五入保留两位小数（到分）
+double round2(double value);
 
-// 账户抽象基类（金额单位一律为“分”）
+// 金额（元）→ "1234.56" 显示字符串
+std::string formatMoney(double yuan);
+
+// 账户抽象基类（金额单位统一为“元”）
 class Account {
 protected:
-    long long accountId;   // 账号（与 User 体系的 long long id 统一）
+    long long accountId;   // 账号
     long long ownerId;     // 所属用户 id
-    long long balance;     // 余额（分）
+    double balance;        // 余额（元）
     AccountStatus status;  // 状态: 正常/冻结/销户
     Date openDate;         // 开户日期
 
 public:
-    Account(long long id, long long ownerId, long long initialBalance, const Date &openDate);
+    Account(long long id, long long ownerId, double initialBalance, const Date &openDate);
 
     virtual ~Account() = default;
 
     // 存款/取款：成功返回 true，失败输出提示并返回 false
-    virtual bool deposit(long long amount);
+    virtual bool deposit(double amount);
 
-    virtual bool withdraw(long long amount);
+    virtual bool withdraw(double amount);
 
-    // 计算截至 today 应计利息（分），不改余额；各账户类型多态实现
-    virtual long long calcInterest(const Date &today) const = 0;
+    // 计算截至 today 应计利息（元），不改余额；各账户类型多态实现
+    virtual double calcInterest(const Date &today) const = 0;
 
-    // 结息：把应计利息并入余额，返回本次入账利息（分）
-    virtual long long settleInterest(const Date &today) = 0;
+    // 结息：把应计利息并入余额，返回本次利息（元）
+    virtual double settleInterest(const Date &today) = 0;
 
     virtual void displayInfo() const;
 
@@ -64,7 +67,7 @@ public:
 
     long long getOwnerId() const { return ownerId; }
 
-    long long getBalance() const { return balance; }
+    double getBalance() const { return balance; }
 
     AccountStatus getStatus() const { return status; }
 
@@ -74,10 +77,10 @@ public:
 
     bool isNormal() const { return status == AccountStatus::NORMAL; }
 
-    // 供 storage 层读档与管理员操作使用
+    // 供 storage 层读档与内部更新使用
     void setStatus(AccountStatus newStatus) { status = newStatus; }
 
-    void setBalance(long long newBalance) { balance = newBalance; }
+    void setBalance(double newBalance) { balance = round2(newBalance); }
 };
 
-#endif //ACCOUNT_H
+#endif // ACCOUNT_H

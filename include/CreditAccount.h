@@ -3,24 +3,24 @@
 
 #include "Account.h"
 
-// 信用账户：支持信用额度内透支消费、欠款按日计息（默认 0.05%/日）、还款冲抵欠款
+// 信用账户：支持信用额度内透支消费、欠款按日计息（默认 0.0005 即 0.05%/日）、还款冲抵欠款
 class CreditAccount : public Account {
-    long long creditLimit;      // 信用额度（分）
-    long long dailyRateX10000;  // 日利率 × 10000（5 即 0.05%/日）
-    Date lastSettleDate;        // 上次计息日
+    double creditLimit;    // 信用额度（元）
+    double dailyRate;      // 日利率（如 0.0005 表示 0.05%/日）
+    Date lastSettleDate;   // 上次计息日
 
 public:
-    CreditAccount(long long id, long long ownerId, long long initialBalance,
-                  const Date &openDate, long long creditLimit = 500000,
-                  long long dailyRateX10000 = 5);
+    CreditAccount(long long id, long long ownerId, double initialBalance,
+                  const Date &openDate, double creditLimit = 5000.0,
+                  double dailyRate = 0.0005);
 
-    bool deposit(long long amount) override;
+    bool deposit(double amount) override;
 
-    bool withdraw(long long amount) override;
+    bool withdraw(double amount) override;
 
-    long long calcInterest(const Date &today) const override;
+    double calcInterest(const Date &today) const override;
 
-    long long settleInterest(const Date &today) override;
+    double settleInterest(const Date &today) override;
 
     AccountType getAccountType() const override;
 
@@ -28,17 +28,17 @@ public:
 
     void displayInfo() const override;
 
-    long long getCreditLimit() const { return creditLimit; }
+    double getCreditLimit() const { return creditLimit; }
 
-    void setCreditLimit(long long limit) { creditLimit = limit; }
+    void setCreditLimit(double limit) { creditLimit = limit; }
 
-    long long getDailyRateX10000() const { return dailyRateX10000; }
+    double getDailyRate() const { return dailyRate; }
 
-    void setDailyRateX10000(long long rate) { dailyRateX10000 = rate; }
+    void setDailyRate(double rate) { dailyRate = rate; }
 
-    long long getDebt() const { return balance < 0 ? -balance : 0; }
+    double getDebt() const { return balance < -0.005 ? -balance : 0.0; }
 
-    long long getAvailableCredit() const { return balance + creditLimit; }
+    double getAvailableCredit() const { return balance + creditLimit; }
 
     const Date &getLastSettleDate() const { return lastSettleDate; }
 

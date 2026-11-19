@@ -19,37 +19,37 @@ class Bank {
     long long nextAccountId = 62001;
     long long nextTransactionId = 1;
 
-    // 基准利率配置（万分之一为单位，支持管理员调整）
-    long long currentRateX10000 = 35;      // 活期年利率 0.35%
-    long long fixed3MRateX10000 = 125;     // 定期3个月 1.25%
-    long long fixed1YRateX10000 = 175;     // 定期1年   1.75%
-    long long fixed3YRateX10000 = 250;     // 定期3年   2.50%
-    long long creditDailyRateX10000 = 5;   // 信用日利率 0.05%
+    // 基准利率配置（直接用小数表示，如 0.0035 表示 0.35%）
+    double currentRate = 0.0035;     // 活期年利率 0.35%
+    double fixed3MRate = 0.0125;     // 定期3个月 1.25%
+    double fixed1YRate = 0.0175;     // 定期1年   1.75%
+    double fixed3YRate = 0.0250;     // 定期3年   2.50%
+    double creditDailyRate = 0.0005; // 信用日利率 0.05%
 
     Customer *findCustomer(long long ownerId);
 
-    void recordTx(TransactionType type, long long fromId, long long toId, long long amount,
-                  long long balanceSnapshot, const std::string &remark);
+    void recordTx(TransactionType type, long long fromId, long long toId, double amount,
+                  double balanceSnapshot, const std::string &remark);
 
 public:
-    // 登录与个人信息管理（失败返回 nullptr / false）
+    // 登录与个人信息管理
     User *login(long long userId, const std::string &password);
     bool updateUserInfo(long long userId, const std::string &newName, const std::string &newPhone = "");
     bool changeUserPassword(long long userId, const std::string &oldPassword, const std::string &newPassword);
 
     // 三类账户开户（成功返回新账号，失败返回 -1）
-    long long openAccount(long long ownerId, long long initialDeposit, const Date &openDate = Date::today());
-    long long openFixedAccount(long long ownerId, long long initialDeposit, int termMonths,
+    long long openAccount(long long ownerId, double initialDeposit, const Date &openDate = Date::today());
+    long long openFixedAccount(long long ownerId, double initialDeposit, int termMonths,
                                bool autoRenew = false, const Date &openDate = Date::today());
-    long long openCreditAccount(long long ownerId, long long creditLimit, const Date &openDate = Date::today());
+    long long openCreditAccount(long long ownerId, double creditLimit, const Date &openDate = Date::today());
 
     // 核心交易业务
-    bool deposit(long long accountId, long long amount, const std::string &remark = "");
-    bool withdraw(long long accountId, long long amount, const std::string &remark = "");
-    long long withdrawFixed(long long accountId, const Date &today = Date::today());
-    bool transfer(long long fromAccountId, long long toAccountId, long long amount,
+    bool deposit(long long accountId, double amount, const std::string &remark = "");
+    bool withdraw(long long accountId, double amount, const std::string &remark = "");
+    double withdrawFixed(long long accountId, const Date &today = Date::today());
+    bool transfer(long long fromAccountId, long long toAccountId, double amount,
                   const std::string &remark = "");
-    long long settleInterest(long long accountId, const Date &today = Date::today());
+    double settleInterest(long long accountId, const Date &today = Date::today());
     int processMaturityRollovers(const Date &today = Date::today());
 
     // 管理员风控与利率调节
@@ -57,13 +57,13 @@ public:
     bool unfreezeAccount(long long accountId);
     bool closeAccount(long long accountId);
 
-    bool setCurrentRate(long long rateX10000);
-    bool setFixedRate(int termMonths, long long rateX10000);
-    bool setCreditDailyRate(long long rateX10000);
-    long long getCurrentRateX10000() const { return currentRateX10000; }
-    long long getFixedRateX10000(int termMonths) const;
-    long long getCreditDailyRateX10000() const { return creditDailyRateX10000; }
-    void initRates(long long cur, long long f3m, long long f1y, long long f3y, long long cr);
+    bool setCurrentRate(double rate);
+    bool setFixedRate(int termMonths, double rate);
+    bool setCreditDailyRate(double rate);
+    double getCurrentRate() const { return currentRate; }
+    double getFixedRate(int termMonths) const;
+    double getCreditDailyRate() const { return creditDailyRate; }
+    void initRates(double cur, double f3m, double f1y, double f3y, double cr);
 
     // 查询流水（支持按账号、类型 1~4、日期范围 YYYY-MM-DD 筛选）
     std::vector<const Transaction *> queryTransactions(long long accountId = 0,

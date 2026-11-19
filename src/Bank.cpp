@@ -66,16 +66,17 @@ bool Bank::changeUserPassword(long long userId, const std::string &oldPassword, 
     return true;
 }
 
-long long Bank::openAccount(long long ownerId, long long initialDeposit, const Date &openDate) {
+long long Bank::openAccount(long long ownerId, double initialDeposit, const Date &openDate) {
     Customer *customer = findCustomer(ownerId);
     if (customer == nullptr) return -1;
-    if (initialDeposit < 0) {
+    initialDeposit = round2(initialDeposit);
+    if (initialDeposit < 0.0) {
         std::cout << "操作失败：开户初始金额不能为负。\n";
         return -1;
     }
     long long id = nextAccountId++;
-    auto account = std::make_unique<CurrentAccount>(id, ownerId, initialDeposit, openDate, currentRateX10000);
-    if (initialDeposit > 0) {
+    auto account = std::make_unique<CurrentAccount>(id, ownerId, initialDeposit, openDate, currentRate);
+    if (initialDeposit > 0.0) {
         recordTx(TransactionType::DEP, 0, id, initialDeposit, initialDeposit, "开户存入");
     }
     customer->addAccount(id);
@@ -83,11 +84,12 @@ long long Bank::openAccount(long long ownerId, long long initialDeposit, const D
     return id;
 }
 
-long long Bank::openFixedAccount(long long ownerId, long long initialDeposit, int termMonths,
+long long Bank::openFixedAccount(long long ownerId, double initialDeposit, int termMonths,
                                  bool autoRenew, const Date &openDate) {
     Customer *customer = findCustomer(ownerId);
     if (customer == nullptr) return -1;
-    if (initialDeposit <= 0) {
+    initialDeposit = round2(initialDeposit);
+    if (initialDeposit <= 0.0) {
         std::cout << "操作失败：定期开户金额必须大于 0。\n";
         return -1;
     }
@@ -97,85 +99,89 @@ long long Bank::openFixedAccount(long long ownerId, long long initialDeposit, in
     }
     long long id = nextAccountId++;
     auto account = std::make_unique<FixedAccount>(id, ownerId, initialDeposit, openDate,
-                                                  termMonths, getFixedRateX10000(termMonths),
-                                                  autoRenew, currentRateX10000);
+                                                  termMonths, getFixedRate(termMonths),
+                                                  autoRenew, currentRate);
     recordTx(TransactionType::DEP, 0, id, initialDeposit, initialDeposit, "定期开户");
     customer->addAccount(id);
     accounts[id] = std::move(account);
     return id;
 }
 
-long long Bank::openCreditAccount(long long ownerId, long long creditLimit, const Date &openDate) {
+long long Bank::openCreditAccount(long long ownerId, double creditLimit, const Date &openDate) {
     Customer *customer = findCustomer(ownerId);
     if (customer == nullptr) return -1;
-    if (creditLimit <= 0) {
+    creditLimit = round2(creditLimit);
+    if (creditLimit <= 0.0) {
         std::cout << "操作失败：信用额度必须大于 0。\n";
         return -1;
     }
     long long id = nextAccountId++;
-    auto account = std::make_unique<CreditAccount>(id, ownerId, 0, openDate, creditLimit, creditDailyRateX10000);
+    auto account = std::make_unique<CreditAccount>(id, ownerId, 0.0, openDate, creditLimit, creditDailyRate);
     customer->addAccount(id);
     accounts[id] = std::move(account);
     return id;
 }
 
-bool Bank::deposit(long long accountId, long long amount, const std::string &remark) {
+bool Bank::deposit(long long accountId, double amount, const std::string &remark) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
         std::cout << "操作失败：账户 " << accountId << " 不存在。\n";
         return false;
     }
     if (!acc->deposit(amount)) return false;
-    recordTx(TransactionType::DEP, 0, accountId, amount, acc->getBalance(), remark.empty() ? "存款/还款" : remark);
+    recordTx(TransactionType::DEP, 0, accountId, round2(amount), acc->getBalance(),
+             remark.empty() ? "存款/还款" : remark);
     return true;
 }
 
-bool Bank::withdraw(long long accountId, long long amount, const std::string &remark) {
+bool Bank::withdraw(long long accountId, double amount, const std::string &remark) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
         std::cout << "操作失败：账户 " << accountId << " 不存在。\n";
         return false;
     }
     if (!acc->withdraw(amount)) return false;
-    recordTx(TransactionType::WDR, accountId, 0, amount, acc->getBalance(), remark.empty() ? "取款/消费" : remark);
+    recordTx(TransactionType::WDR, accountId, 0, round2(amount), acc->getBalance(),
+             remark.empty() ? "取款/消费" : remark);
     return true;
 }
 
 // 定期全额支取：先按当前日期结算利息并入本金，再一次性取出全部本息
-long long Bank::withdrawFixed(long long accountId, const Date &today) {
+double Bank::withdrawFixed(long long accountId, const Date &today) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
         std::cout << "操作失败：账户 " << accountId << " 不存在。\n";
-        return -1;
+        return -1.0;
     }
     FixedAccount *fixed = dynamic_cast<FixedAccount *>(acc);
     if (fixed == nullptr) {
         std::cout << "操作失败：该账号不是定期账户。\n";
-        return -1;
+        return -1.0;
     }
     if (!fixed->isNormal()) {
         std::cout << "操作失败：账户已" << fixed->getStatusString() << "，禁止支取。\n";
-        return -1;
+        return -1.0;
     }
-    if (fixed->getBalance() <= 0) {
+    if (fixed->getBalance() <= 0.005) {
         std::cout << "操作失败：定期账户余额为 0。\n";
-        return -1;
+        return -1.0;
     }
 
-    long long interest = fixed->calcInterest(today);
-    if (interest > 0) {
+    double interest = fixed->calcInterest(today);
+    if (interest > 0.0) {
         fixed->setBalance(fixed->getBalance() + interest);
         recordTx(TransactionType::INT, 0, accountId, interest, fixed->getBalance(),
                  today < fixed->getMaturityDate() ? "定期提前支取活期结息" : "定期到期结息");
     }
-    long long payout = fixed->getBalance();
-    if (!fixed->withdraw(payout)) return -1;
-    recordTx(TransactionType::WDR, accountId, 0, payout, 0, "定期支取本息");
+    double payout = fixed->getBalance();
+    if (!fixed->withdraw(payout)) return -1.0;
+    recordTx(TransactionType::WDR, accountId, 0, payout, 0.0, "定期支取本息");
     return payout;
 }
 
 // 转账：先校验双方状态与账户类型，再通过多态 withdraw/deposit 扣款和入账
-bool Bank::transfer(long long fromAccountId, long long toAccountId, long long amount, const std::string &remark) {
+bool Bank::transfer(long long fromAccountId, long long toAccountId, double amount, const std::string &remark) {
+    amount = round2(amount);
     if (fromAccountId == toAccountId) {
         std::cout << "操作失败：转账双方不能是同一个账户。\n";
         return false;
@@ -190,7 +196,7 @@ bool Bank::transfer(long long fromAccountId, long long toAccountId, long long am
         std::cout << "操作失败：收款账户 " << toAccountId << " 不存在。\n";
         return false;
     }
-    if (amount <= 0) {
+    if (amount <= 0.0) {
         std::cout << "操作失败：转账金额必须大于 0。\n";
         return false;
     }
@@ -209,18 +215,18 @@ bool Bank::transfer(long long fromAccountId, long long toAccountId, long long am
     return true;
 }
 
-long long Bank::settleInterest(long long accountId, const Date &today) {
+double Bank::settleInterest(long long accountId, const Date &today) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
         std::cout << "操作失败：账户 " << accountId << " 不存在。\n";
-        return -1;
+        return -1.0;
     }
     if (!acc->isNormal()) {
         std::cout << "操作失败：账户已" << acc->getStatusString() << "，无法结息。\n";
-        return -1;
+        return -1.0;
     }
-    long long interest = acc->settleInterest(today);
-    if (interest > 0) {
+    double interest = acc->settleInterest(today);
+    if (interest > 0.0) {
         if (acc->getAccountType() == AccountType::CREDIT) {
             recordTx(TransactionType::INT, accountId, 0, interest, acc->getBalance(), "信用透支计息");
         } else {
@@ -235,10 +241,10 @@ int Bank::processMaturityRollovers(const Date &today) {
     for (const auto &pair : accounts) {
         long long aid = pair.first;
         FixedAccount *fix = dynamic_cast<FixedAccount *>(pair.second.get());
-        if (!fix || !fix->isNormal() || !fix->isAutoRenew() || fix->getBalance() <= 0) continue;
+        if (!fix || !fix->isNormal() || !fix->isAutoRenew() || fix->getBalance() <= 0.0) continue;
         while (today >= fix->getMaturityDate()) {
-            long long interest = fix->settleInterest(today);
-            if (interest > 0) {
+            double interest = fix->settleInterest(today);
+            if (interest > 0.0) {
                 recordTx(TransactionType::INT, 0, aid, interest, fix->getBalance(), "定期到期自动转存结息");
             }
             count++;
@@ -280,28 +286,28 @@ bool Bank::closeAccount(long long accountId) {
     return true;
 }
 
-bool Bank::setCurrentRate(long long rateX10000) {
-    if (rateX10000 < 0) {
+bool Bank::setCurrentRate(double rate) {
+    if (rate < 0.0) {
         std::cout << "操作失败：利率不能为负。\n";
         return false;
     }
-    currentRateX10000 = rateX10000;
+    currentRate = rate;
     for (const auto &pair : accounts) {
         Account *acc = pair.second.get();
-        if (CurrentAccount *cur = dynamic_cast<CurrentAccount *>(acc)) cur->setRateX10000(rateX10000);
-        else if (FixedAccount *fix = dynamic_cast<FixedAccount *>(acc)) fix->setCurrentRateX10000(rateX10000);
+        if (CurrentAccount *cur = dynamic_cast<CurrentAccount *>(acc)) cur->setRate(rate);
+        else if (FixedAccount *fix = dynamic_cast<FixedAccount *>(acc)) fix->setCurrentRate(rate);
     }
     return true;
 }
 
-bool Bank::setFixedRate(int termMonths, long long rateX10000) {
-    if (rateX10000 < 0) {
+bool Bank::setFixedRate(int termMonths, double rate) {
+    if (rate < 0.0) {
         std::cout << "操作失败：利率不能为负。\n";
         return false;
     }
-    if (termMonths == 3) fixed3MRateX10000 = rateX10000;
-    else if (termMonths == 12) fixed1YRateX10000 = rateX10000;
-    else if (termMonths == 36) fixed3YRateX10000 = rateX10000;
+    if (termMonths == 3) fixed3MRate = rate;
+    else if (termMonths == 12) fixed1YRate = rate;
+    else if (termMonths == 36) fixed3YRate = rate;
     else {
         std::cout << "操作失败：定期档位只支持 3 / 12 / 36 个月。\n";
         return false;
@@ -309,37 +315,37 @@ bool Bank::setFixedRate(int termMonths, long long rateX10000) {
 
     for (const auto &pair : accounts) {
         if (FixedAccount *fix = dynamic_cast<FixedAccount *>(pair.second.get())) {
-            if (fix->getTermMonths() == termMonths) fix->setRateX10000(rateX10000);
+            if (fix->getTermMonths() == termMonths) fix->setRate(rate);
         }
     }
     return true;
 }
 
-bool Bank::setCreditDailyRate(long long rateX10000) {
-    if (rateX10000 < 0) {
+bool Bank::setCreditDailyRate(double rate) {
+    if (rate < 0.0) {
         std::cout << "操作失败：利率不能为负。\n";
         return false;
     }
-    creditDailyRateX10000 = rateX10000;
+    creditDailyRate = rate;
     for (const auto &pair : accounts) {
-        if (CreditAccount *cr = dynamic_cast<CreditAccount *>(pair.second.get())) cr->setDailyRateX10000(rateX10000);
+        if (CreditAccount *cr = dynamic_cast<CreditAccount *>(pair.second.get())) cr->setDailyRate(rate);
     }
     return true;
 }
 
-long long Bank::getFixedRateX10000(int termMonths) const {
-    if (termMonths == 3) return fixed3MRateX10000;
-    if (termMonths == 12) return fixed1YRateX10000;
-    if (termMonths == 36) return fixed3YRateX10000;
-    return 0;
+double Bank::getFixedRate(int termMonths) const {
+    if (termMonths == 3) return fixed3MRate;
+    if (termMonths == 12) return fixed1YRate;
+    if (termMonths == 36) return fixed3YRate;
+    return 0.0;
 }
 
-void Bank::initRates(long long cur, long long f3m, long long f1y, long long f3y, long long cr) {
-    currentRateX10000 = cur;
-    fixed3MRateX10000 = f3m;
-    fixed1YRateX10000 = f1y;
-    fixed3YRateX10000 = f3y;
-    creditDailyRateX10000 = cr;
+void Bank::initRates(double cur, double f3m, double f1y, double f3y, double cr) {
+    currentRate = cur;
+    fixed3MRate = f3m;
+    fixed1YRate = f1y;
+    fixed3YRate = f3y;
+    creditDailyRate = cr;
 }
 
 // 按账号、类型、日期范围过滤流水（"YYYY-MM-DD" 字符串直接按字典序比较）
@@ -370,8 +376,8 @@ User *Bank::findUser(long long userId) {
     return it->second.get();
 }
 
-void Bank::recordTx(TransactionType type, long long fromId, long long toId, long long amount,
-                    long long balanceSnapshot, const std::string &remark) {
+void Bank::recordTx(TransactionType type, long long fromId, long long toId, double amount,
+                    double balanceSnapshot, const std::string &remark) {
     transactions.push_back(Transaction(nextTransactionId++, Date::nowDateTime(), type, fromId, toId,
                                        amount, balanceSnapshot, remark));
 }

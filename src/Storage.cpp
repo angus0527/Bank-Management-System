@@ -34,26 +34,19 @@ static std::string resolvePath(const std::string &path) {
     return path;
 }
 
-// 将文本中的状态编码还原为 AccountStatus 枚举（缺省回落为 NORMAL，保证向后兼容）
+// 将文本中的状态编码还原为 AccountStatus 枚举
 static AccountStatus parseStatusField(const std::string &s) {
     if (s == "2") return AccountStatus::FROZEN;
     if (s == "3") return AccountStatus::CLOSED;
     return AccountStatus::NORMAL;
 }
 
-// 根据 usersPath 所在目录推导同级 rates.txt 路径，避免污染正式测试目录
-static std::string deriveRatesPath(const std::string &usersPath) {
-    std::filesystem::path p(usersPath);
-    if (p.has_parent_path()) {
-        return (p.parent_path() / "rates.txt").string();
-    }
-    return "rates.txt";
-}
-
-TextFileStorage::TextFileStorage(std::string usersFile, std::string accountsFile, std::string txFile)
+TextFileStorage::TextFileStorage(std::string usersFile, std::string accountsFile,
+                                 std::string txFile, std::string ratesFile)
     : usersPath(resolvePath(usersFile)),
       accountsPath(resolvePath(accountsFile)),
-      transactionsPath(resolvePath(txFile)) {}
+      transactionsPath(resolvePath(txFile)),
+      ratesPath(resolvePath(ratesFile)) {}
 
 // 序列化保存全行用户：格式为 U|用户ID|角色(C/A)|姓名|混淆密码|电话
 void TextFileStorage::saveUsers(const Bank &bank) const {
@@ -96,8 +89,7 @@ void TextFileStorage::saveTransactions(const Bank &bank) const {
     }
 }
 
-// 解析 users.txt 并按角色标识还原 Admin / Customer 对象
-// 注意构造函数末尾传 true 表示密文已混淆，避免重启读档发生二次混淆
+// 解析 users.txt 并按角色标识还原 Admin / Customer 对象（文件中存的本身就是加密后密文）
 void TextFileStorage::loadUsers(Bank &bank) {
     std::ifstream in(usersPath);
     if (!in.is_open()) return;
@@ -110,14 +102,14 @@ void TextFileStorage::loadUsers(Bank &bank) {
 
         long long id = std::stoll(f[1]);
         if (f[2] == "A") {
-            bank.addUser(std::make_unique<Admin>(id, f[3], f[4], true));
+            bank.addUser(std::make_unique<Admin>(id, f[3], f[4]));
         } else {
-            bank.addUser(std::make_unique<Customer>(id, f[3], f[4], f[5], true));
+            bank.addUser(std::make_unique<Customer>(id, f[3], f[4], f[5]));
         }
     }
 }
 
-// 解析 accounts.txt，根据类型标识（C活期/F定期/X信用）动态实例化子类并补全与户主的双向关联
+// 解析 accounts.txt（固定 14 列格式），按类型标识还原 C 活期 / F 定期 / X 信用账户
 void TextFileStorage::loadAccounts(Bank &bank) {
     std::ifstream in(accountsPath);
     if (!in.is_open()) return;
@@ -126,53 +118,38 @@ void TextFileStorage::loadAccounts(Bank &bank) {
     while (std::getline(in, line)) {
         if (line.empty()) continue;
         auto f = split(line, '|');
-        if (f.size() < 7 || f[0] != "A") continue;
+        if (f.size() < 14 || f[0] != "A") continue;
 
         long long id = std::stoll(f[1]);
         long long ownerId = std::stoll(f[3]);
-        long long balance = std::stoll(f[4]);
+        double balance = std::stod(f[4]);
         Date openDate = Date::fromString(f[5]);
-        long long rate = std::stoll(f[6]);
+        double rate = std::stod(f[6]);
 
         std::unique_ptr<Account> acc;
         if (f[2] == "C") {
-            // 还原活期账户及其上次结息日、状态
             auto cur = std::make_unique<CurrentAccount>(id, ownerId, balance, openDate, rate);
-            if (f.size() >= 13 && !f[12].empty()) {
-                cur->setLastSettleDate(Date::fromString(f[12]));
-            }
-            if (f.size() >= 14 && !f[13].empty()) {
-                cur->setStatus(parseStatusField(f[13]));
-            }
+            cur->setLastSettleDate(Date::fromString(f[12]));
             acc = std::move(cur);
-        } else if (f[2] == "F" && f.size() >= 10) {
-            // 还原定期账户：存期月数、到期日、自动转存标志与提前支取参照活期利率
+        } else if (f[2] == "F") {
             int termMonths = std::stoi(f[7]);
             Date maturityDate = Date::fromString(f[8]);
             bool autoRenew = (f[9] == "1");
-            long long curRate = (f.size() >= 13 && !f[12].empty()) ? std::stoll(f[12]) : bank.getCurrentRateX10000();
+            double curRate = std::stod(f[12]);
             auto fix = std::make_unique<FixedAccount>(id, ownerId, balance, openDate, termMonths,
                                                       rate, autoRenew, curRate);
             fix->setMaturityDate(maturityDate);
-            if (f.size() >= 14 && !f[13].empty()) {
-                fix->setStatus(parseStatusField(f[13]));
-            }
             acc = std::move(fix);
-        } else if (f[2] == "X" && f.size() >= 11) {
-            // 还原信用账户：支持恢复负余额（透支欠款）及信用额度
-            long long creditLimit = std::stoll(f[10]);
+        } else if (f[2] == "X") {
+            double creditLimit = std::stod(f[10]);
             auto cr = std::make_unique<CreditAccount>(id, ownerId, balance, openDate, creditLimit, rate);
-            if (f.size() >= 13 && !f[12].empty()) {
-                cr->setLastSettleDate(Date::fromString(f[12]));
-            }
-            if (f.size() >= 14 && !f[13].empty()) {
-                cr->setStatus(parseStatusField(f[13]));
-            }
+            cr->setLastSettleDate(Date::fromString(f[12]));
             acc = std::move(cr);
         }
 
         if (acc) {
-            AccountStatus st = acc->getStatus();
+            AccountStatus st = parseStatusField(f[13]);
+            acc->setStatus(st);
             bank.addAccount(std::move(acc));
             // 仅将未销户的账号回填进所属 Customer 的持卡列表，保证读档后名下卡号完整
             if (st != AccountStatus::CLOSED) {
@@ -203,8 +180,8 @@ void TextFileStorage::loadTransactions(Bank &bank) {
         TransactionType type = Transaction::typeFromCode(f[3]);
         long long fromAcc = std::stoll(f[4]);
         long long toAcc = std::stoll(f[5]);
-        long long amount = std::stoll(f[6]);
-        long long snapshot = std::stoll(f[7]);
+        double amount = std::stod(f[6]);
+        double snapshot = std::stod(f[7]);
         std::string remark = f[8];
 
         bank.addTransaction(Transaction(id, f[2], type, fromAcc, toAcc, amount, snapshot, remark));
@@ -221,26 +198,26 @@ void TextFileStorage::save(const Bank &bank) {
     saveAccounts(bank);
     saveTransactions(bank);
 
-    std::ofstream rOut(deriveRatesPath(usersPath));
+    std::ofstream rOut(ratesPath);
     if (rOut.is_open()) {
-        rOut << "R|" << bank.getCurrentRateX10000() << "|"
-             << bank.getFixedRateX10000(3) << "|"
-             << bank.getFixedRateX10000(12) << "|"
-             << bank.getFixedRateX10000(36) << "|"
-             << bank.getCreditDailyRateX10000() << "\n";
+        rOut << "R|" << bank.getCurrentRate() << "|"
+             << bank.getFixedRate(3) << "|"
+             << bank.getFixedRate(12) << "|"
+             << bank.getFixedRate(36) << "|"
+             << bank.getCreditDailyRate() << "\n";
     }
 }
 
 // 全量装载：先恢复基准利率配置，再依次恢复用户、账户与流水（顺序不可颠倒）
 void TextFileStorage::load(Bank &bank) {
-    std::ifstream rIn(deriveRatesPath(usersPath));
+    std::ifstream rIn(ratesPath);
     if (rIn.is_open()) {
         std::string line;
         if (std::getline(rIn, line)) {
             auto f = split(line, '|');
             if (f.size() >= 6 && f[0] == "R") {
-                bank.initRates(std::stoll(f[1]), std::stoll(f[2]), std::stoll(f[3]),
-                               std::stoll(f[4]), std::stoll(f[5]));
+                bank.initRates(std::stod(f[1]), std::stod(f[2]), std::stod(f[3]),
+                               std::stod(f[4]), std::stod(f[5]));
             }
         }
     }

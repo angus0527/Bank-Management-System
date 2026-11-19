@@ -1,19 +1,28 @@
 #include "../include/Account.h"
 
-std::string formatMoney(long long cents) {
-    // 分转元，保留两位小数；负数（信用账户欠款）同样适用
-    long long absCents = cents < 0 ? -cents : cents;
-    std::string sign = cents < 0 ? "-" : "";
-    int fen = static_cast<int>(absCents % 100);
-    return sign + std::to_string(absCents / 100) + (fen < 10 ? ".0" : ".") + std::to_string(fen);
+#include <cmath>
+#include <iomanip>
+#include <sstream>
+
+double round2(double value) {
+    return std::round(value * 100.0) / 100.0;
 }
 
-Account::Account(long long id, long long ownerId_, long long initialBalance, const Date &date)
-    : accountId(id), ownerId(ownerId_), balance(initialBalance),
+std::string formatMoney(double yuan) {
+    if (std::abs(yuan) < 0.005) {
+        return "0.00";
+    }
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(2) << round2(yuan);
+    return oss.str();
+}
+
+Account::Account(long long id, long long ownerId_, double initialBalance, const Date &date)
+    : accountId(id), ownerId(ownerId_), balance(round2(initialBalance)),
       status(AccountStatus::NORMAL), openDate(date) {
-    if (balance < 0) {
+    if (balance < 0.0) {
         std::cout << "提示：初始金额不能为负，已按 0.00 元处理。\n";
-        balance = 0;
+        balance = 0.0;
     }
 }
 
@@ -30,8 +39,9 @@ std::string Account::getStatusString() const {
     }
 }
 
-bool Account::deposit(long long amount) {
-    if (amount <= 0) {
+bool Account::deposit(double amount) {
+    amount = round2(amount);
+    if (amount <= 0.0) {
         std::cout << "操作失败：存款金额必须大于 0。\n";
         return false;
     }
@@ -39,12 +49,13 @@ bool Account::deposit(long long amount) {
         std::cout << "操作失败：账户" << accountId << "已" << getStatusString() << "，禁止存款。\n";
         return false;
     }
-    balance += amount;
+    balance = round2(balance + amount);
     return true;
 }
 
-bool Account::withdraw(long long amount) {
-    if (amount <= 0) {
+bool Account::withdraw(double amount) {
+    amount = round2(amount);
+    if (amount <= 0.0) {
         std::cout << "操作失败：取款金额必须大于 0。\n";
         return false;
     }
@@ -52,12 +63,12 @@ bool Account::withdraw(long long amount) {
         std::cout << "操作失败：账户" << accountId << "已" << getStatusString() << "，禁止取款。\n";
         return false;
     }
-    if (amount > balance) {
+    if (amount > balance + 0.005) {
         std::cout << "操作失败：余额不足，当前余额 " << formatMoney(balance)
                   << " 元，尝试取款 " << formatMoney(amount) << " 元。\n";
         return false;
     }
-    balance -= amount;
+    balance = round2(balance - amount);
     return true;
 }
 
@@ -81,10 +92,11 @@ void Account::unfreeze() {
 }
 
 bool Account::closeAccount() {
-    if (balance != 0) {
+    if (std::abs(balance) > 0.005) {
         std::cout << "操作失败：账户尚有余额 " << formatMoney(balance) << " 元，禁止销户。\n";
         return false;
     }
+    balance = 0.0;
     status = AccountStatus::CLOSED;
     return true;
 }

@@ -1,12 +1,15 @@
 #include "../include/FixedAccount.h"
 
-FixedAccount::FixedAccount(long long id, long long ownerId, long long initialBalance,
-                           const Date &openDate, int termMonths_, long long rate,
-                           bool autoRenew_, long long currentRate)
+#include <cmath>
+#include <sstream>
+
+FixedAccount::FixedAccount(long long id, long long ownerId, double initialBalance,
+                           const Date &openDate, int termMonths_, double rate_,
+                           bool autoRenew_, double currentRate_)
     : Account(id, ownerId, initialBalance, openDate),
       termMonths((termMonths_ == 3 || termMonths_ == 12 || termMonths_ == 36) ? termMonths_ : 12),
-      rateX10000(rate),
-      currentRateX10000(currentRate),
+      rate(rate_),
+      currentRate(currentRate_),
       maturityDate(openDate.addMonths(termMonths)),
       autoRenew(autoRenew_) {
     if (termMonths_ != 3 && termMonths_ != 12 && termMonths_ != 36) {
@@ -14,13 +17,14 @@ FixedAccount::FixedAccount(long long id, long long ownerId, long long initialBal
     }
 }
 
-bool FixedAccount::deposit(long long /*amount*/) {
+bool FixedAccount::deposit(double /*amount*/) {
     std::cout << "操作失败：定期账户不支持中途追加存款。\n";
     return false;
 }
 
-bool FixedAccount::withdraw(long long amount) {
-    if (amount <= 0) {
+bool FixedAccount::withdraw(double amount) {
+    amount = round2(amount);
+    if (amount <= 0.0) {
         std::cout << "操作失败：支取金额必须大于 0。\n";
         return false;
     }
@@ -28,41 +32,43 @@ bool FixedAccount::withdraw(long long amount) {
         std::cout << "操作失败：账户已" << getStatusString() << "，禁止支取。\n";
         return false;
     }
-    if (amount != balance) {
+    if (std::abs(amount - balance) > 0.005) {
         std::cout << "操作失败：定期存款必须一次性全额支取，当前余额为 " << formatMoney(balance) << " 元。\n";
         return false;
     }
-    balance = 0;
+    balance = 0.0;
     return true;
 }
 
-// 多态计息：到期按定期利率算整期利息；未到期提前支取按活期利率×实际天数算
-long long FixedAccount::calcInterest(const Date &today) const {
-    if (balance <= 0 || status == AccountStatus::CLOSED) return 0;
+// 多态计息：到期按 本金 * 定期年利率 * 月数 / 12；未到期提前支取按 本金 * 活期年利率 * 天数 / 360
+double FixedAccount::calcInterest(const Date &today) const {
+    if (balance <= 0.0 || status == AccountStatus::CLOSED) return 0.0;
     if (today >= maturityDate) {
-        return balance * rateX10000 * termMonths / (10000LL * 12LL);
+        return round2(balance * rate * static_cast<double>(termMonths) / 12.0);
     }
     long long days = openDate.daysBetween(today);
-    if (days <= 0) return 0;
-    return balance * currentRateX10000 * days / (10000LL * 360LL);
+    if (days <= 0) return 0.0;
+    return round2(balance * currentRate * static_cast<double>(days) / 360.0);
 }
 
 // 到期结息并顺延到下一周期；未到期不提前结息
-long long FixedAccount::settleInterest(const Date &today) {
-    if (status == AccountStatus::CLOSED || balance <= 0 || today < maturityDate) return 0;
-    long long interest = calcInterest(today);
-    balance += interest;
+double FixedAccount::settleInterest(const Date &today) {
+    if (status == AccountStatus::CLOSED || balance <= 0.0 || today < maturityDate) return 0.0;
+    double interest = calcInterest(today);
+    balance = round2(balance + interest);
     openDate = maturityDate;
     maturityDate = openDate.addMonths(termMonths);
     return interest;
 }
 
 std::string FixedAccount::serialize() const {
-    return "A|" + std::to_string(accountId) + "|F|" + std::to_string(ownerId) + "|" +
-           std::to_string(balance) + "|" + openDate.toString() + "|" +
-           std::to_string(rateX10000) + "|" + std::to_string(termMonths) + "|" +
-           maturityDate.toString() + "|" + (autoRenew ? "1" : "0") + "|0|0|" +
-           std::to_string(currentRateX10000) + "|" + std::to_string(static_cast<int>(status));
+    std::ostringstream oss;
+    oss << "A|" << accountId << "|F|" << ownerId << "|"
+        << formatMoney(balance) << "|" << openDate.toString() << "|"
+        << rate << "|" << termMonths << "|"
+        << maturityDate.toString() << "|" << (autoRenew ? "1" : "0") << "|0|0|"
+        << currentRate << "|" << static_cast<int>(status);
+    return oss.str();
 }
 
 void FixedAccount::displayInfo() const {

@@ -5,10 +5,10 @@
 #include "../include/Account.h"
 
 Transaction::Transaction(long long id, std::string datetime, TransactionType type,
-                         long long fromAccountId, long long toAccountId, long long amount,
-                         long long balanceSnapshot, std::string remark)
+                         long long fromAccountId, long long toAccountId, double amount,
+                         double balanceSnapshot, std::string remark)
     : id(id), datetime(std::move(datetime)), type(type), fromAccountId(fromAccountId),
-      toAccountId(toAccountId), amount(amount), balanceSnapshot(balanceSnapshot),
+      toAccountId(toAccountId), amount(round2(amount)), balanceSnapshot(round2(balanceSnapshot)),
       remark(std::move(remark)) {
 }
 
@@ -37,7 +37,7 @@ TransactionType Transaction::typeFromCode(const std::string &code) {
 std::string Transaction::serialize() const {
     return "T|" + std::to_string(id) + "|" + datetime + "|" + typeCode(type) + "|" +
            std::to_string(fromAccountId) + "|" + std::to_string(toAccountId) + "|" +
-           std::to_string(amount) + "|" + std::to_string(balanceSnapshot) + "|" + remark;
+           formatMoney(amount) + "|" + formatMoney(balanceSnapshot) + "|" + remark;
 }
 
 void Transaction::display() const {
