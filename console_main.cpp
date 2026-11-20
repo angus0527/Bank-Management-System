@@ -15,38 +15,6 @@
 #include <windows.h>
 #endif
 
-// 清空 cin 错误状态并丢弃本行残留输入，防止用户输入非数字导致死循环
-static void clearCinLine() {
-    std::cin.clear();
-    std::cin.ignore(1024, '\n');
-}
-
-// 安全读取整数（菜单编号、账号等）
-static bool inputLongLong(const std::string &prompt, long long &val) {
-    std::cout << prompt;
-    if (std::cin >> val) return true;
-    if (std::cin.eof()) return false;
-    clearCinLine();
-    std::cout << "输入格式有误，请输入数字。\n";
-    return false;
-}
-
-// 读取非负浮点数（金额、利率百分比）
-static bool inputDouble(const std::string &prompt, double &val) {
-    std::cout << prompt;
-    if (std::cin >> val) {
-        if (val < 0.0) {
-            std::cout << "输入数值不能为负数。\n";
-            return false;
-        }
-        return true;
-    }
-    if (std::cin.eof()) return false;
-    clearCinLine();
-    std::cout << "格式有误，请输入数字。\n";
-    return false;
-}
-
 // 将交易类型枚举转为中文名称（导出 CSV 用）
 static std::string txTypeName(TransactionType t) {
     if (t == TransactionType::DEP) return "存款";
@@ -75,7 +43,11 @@ static void showTransactions(const Bank &bank, long long accId, const Customer *
     int typeFilter = 0;
     std::string startD, endD;
     std::cout << "按类型筛选 (0=全部 1=存款 2=取款 3=转账 4=结息): ";
-    if (!(std::cin >> typeFilter)) { clearCinLine(); return; }
+    std::cin >> typeFilter;
+    if (typeFilter < 0 || typeFilter > 4) {
+        std::cout << "类型编号不合法。\n";
+        return;
+    }
     std::cout << "起始日期 (如 2026-10-01，输 0 不限): ";
     std::cin >> startD;
     if (startD == "0") startD.clear();
@@ -107,12 +79,10 @@ static void customerMenu(Bank &bank, Customer *cust) {
         std::cout << "7. 查询交易流水        8. 修改资料 / 改密码\n";
         std::cout << "9. 账户销户            10. 导出对账单(CSV)\n";
         std::cout << "0. 退出登录\n";
+        std::cout << "请选择: ";
 
-        long long op = -1;
-        if (!inputLongLong("请选择: ", op)) {
-            if (std::cin.eof()) break;
-            continue;
-        }
+        int op = -1;
+        if (!(std::cin >> op)) break;
         if (op == 0) break;
 
         if (op == 1) {
@@ -127,17 +97,27 @@ static void customerMenu(Bank &bank, Customer *cust) {
         } else if (op == 2) {
             long long aid;
             double amount;
-            if (!inputLongLong("账号: ", aid) || !inputDouble("存入/还款金额(元): ", amount)) continue;
+            std::cout << "账号: ";
+            std::cin >> aid;
+            std::cout << "存入/还款金额(元): ";
+            std::cin >> amount;
             if (bank.deposit(aid, amount, "柜面存入/还款")) {
                 Logger::log("账户 " + std::to_string(aid) + " 存入 " + formatMoney(amount) + " 元");
                 std::cout << "操作成功，当前余额: " << formatMoney(bank.findAccount(aid)->getBalance()) << " 元\n";
             }
         } else if (op == 3) {
             long long aid;
-            if (!inputLongLong("账号: ", aid)) continue;
-            if (!hasAccount(cust, aid)) { std::cout << "只能操作本人名下账户。\n"; continue; }
+            std::cout << "账号: ";
+            std::cin >> aid;
+            if (!hasAccount(cust, aid)) {
+                std::cout << "只能操作本人名下账户。\n";
+                continue;
+            }
             Account *a = bank.findAccount(aid);
-            if (a == nullptr) { std::cout << "账户不存在。\n"; continue; }
+            if (a == nullptr) {
+                std::cout << "账户不存在。\n";
+                continue;
+            }
             if (a->getAccountType() == AccountType::FIXED) {
                 double payout = bank.withdrawFixed(aid);
                 if (payout >= 0.0) {
@@ -146,7 +126,8 @@ static void customerMenu(Bank &bank, Customer *cust) {
                 }
             } else {
                 double amount;
-                if (!inputDouble("取款/消费金额(元): ", amount)) continue;
+                std::cout << "取款/消费金额(元): ";
+                std::cin >> amount;
                 if (bank.withdraw(aid, amount, "取款/消费")) {
                     Logger::log("账户 " + std::to_string(aid) + " 支出 " + formatMoney(amount) + " 元");
                     std::cout << "操作成功，当前余额: " << formatMoney(a->getBalance()) << " 元\n";
@@ -155,88 +136,123 @@ static void customerMenu(Bank &bank, Customer *cust) {
         } else if (op == 4) {
             long long fromId, toId;
             double amount;
-            if (!inputLongLong("付款账号: ", fromId) ||
-                !inputLongLong("收款账号: ", toId) ||
-                !inputDouble("转账金额(元): ", amount)) continue;
-            if (!hasAccount(cust, fromId)) { std::cout << "只能从本人名下账户转出。\n"; continue; }
+            std::cout << "付款账号: ";
+            std::cin >> fromId;
+            std::cout << "收款账号: ";
+            std::cin >> toId;
+            std::cout << "转账金额(元): ";
+            std::cin >> amount;
+            if (!hasAccount(cust, fromId)) {
+                std::cout << "只能从本人名下账户转出。\n";
+                continue;
+            }
             if (bank.transfer(fromId, toId, amount, "同行转账")) {
                 Logger::log("转账 " + std::to_string(fromId) + " -> " + std::to_string(toId) + " " + formatMoney(amount) + " 元");
                 std::cout << "转账成功！付款账户余额: " << formatMoney(bank.findAccount(fromId)->getBalance()) << " 元\n";
             }
         } else if (op == 5) {
-            long long kind = 0;
-            if (!inputLongLong("账户类型 (1=活期 2=定期 3=信用): ", kind)) continue;
+            int kind = 0;
+            std::cout << "账户类型 (1=活期 2=定期 3=信用): ";
+            std::cin >> kind;
             if (kind == 1) {
                 double amount;
-                if (!inputDouble("初始存款(元): ", amount)) continue;
+                std::cout << "初始存款(元): ";
+                std::cin >> amount;
                 long long nid = bank.openAccount(cust->getId(), amount);
                 if (nid > 0) {
                     Logger::log("客户 " + std::to_string(cust->getId()) + " 开立活期账户 " + std::to_string(nid));
                     std::cout << "开户成功，账号: " << nid << "\n";
                 }
             } else if (kind == 2) {
-                long long term, renew;
+                int term, renew;
                 double amount;
-                if (!inputLongLong("存期月数 (3/12/36): ", term) ||
-                    !inputDouble("定期存入金额(元): ", amount) ||
-                    !inputLongLong("到期自动转存? (1=是 0=否): ", renew)) continue;
-                long long nid = bank.openFixedAccount(cust->getId(), amount, static_cast<int>(term), renew == 1);
+                std::cout << "存期月数 (3/12/36): ";
+                std::cin >> term;
+                std::cout << "定期存入金额(元): ";
+                std::cin >> amount;
+                std::cout << "到期自动转存? (1=是 0=否): ";
+                std::cin >> renew;
+                long long nid = bank.openFixedAccount(cust->getId(), amount, term, renew == 1);
                 if (nid > 0) {
                     Logger::log("客户 " + std::to_string(cust->getId()) + " 开立定期账户 " + std::to_string(nid));
                     std::cout << "定期开户成功，账号: " << nid << "\n";
                 }
             } else if (kind == 3) {
                 double limit;
-                if (!inputDouble("申请信用额度(元): ", limit)) continue;
+                std::cout << "申请信用额度(元): ";
+                std::cin >> limit;
                 long long nid = bank.openCreditAccount(cust->getId(), limit);
                 if (nid > 0) {
                     Logger::log("客户 " + std::to_string(cust->getId()) + " 开立信用账户 " + std::to_string(nid));
                     std::cout << "信用账户开户成功，账号: " << nid << "\n";
                 }
+            } else {
+                std::cout << "无效的账户类型。\n";
             }
         } else if (op == 6) {
             long long aid;
-            if (!inputLongLong("结息账号: ", aid)) continue;
-            if (!hasAccount(cust, aid)) { std::cout << "只能操作本人名下账户。\n"; continue; }
+            std::cout << "结息账号: ";
+            std::cin >> aid;
+            if (!hasAccount(cust, aid)) {
+                std::cout << "只能操作本人名下账户。\n";
+                continue;
+            }
             double interest = bank.settleInterest(aid);
             if (interest >= 0.0) {
                 std::cout << "结息完成，本次利息发生额: " << formatMoney(interest) << " 元\n";
             }
         } else if (op == 7) {
             long long aid;
-            if (!inputLongLong("查询账号 (0=本人全部): ", aid)) continue;
-            if (aid != 0 && !hasAccount(cust, aid)) { std::cout << "只能查询本人名下账户流水。\n"; continue; }
+            std::cout << "查询账号 (0=本人全部): ";
+            std::cin >> aid;
+            if (aid != 0 && !hasAccount(cust, aid)) {
+                std::cout << "只能查询本人名下账户流水。\n";
+                continue;
+            }
             showTransactions(bank, aid, cust);
         } else if (op == 8) {
-            long long sub = 0;
-            if (!inputLongLong("1=修改姓名电话  2=修改密码: ", sub)) continue;
+            int sub = 0;
+            std::cout << "1=修改姓名电话  2=修改密码: ";
+            std::cin >> sub;
             if (sub == 1) {
                 std::string name, phone;
-                std::cout << "新姓名: "; std::cin >> name;
-                std::cout << "新电话: "; std::cin >> phone;
+                std::cout << "新姓名: ";
+                std::cin >> name;
+                std::cout << "新电话: ";
+                std::cin >> phone;
                 if (bank.updateUserInfo(cust->getId(), name, phone)) {
                     std::cout << "资料已更新。\n";
                 }
             } else if (sub == 2) {
                 std::string oldP, newP;
-                std::cout << "原密码: "; std::cin >> oldP;
-                std::cout << "新密码: "; std::cin >> newP;
+                std::cout << "原密码: ";
+                std::cin >> oldP;
+                std::cout << "新密码: ";
+                std::cin >> newP;
                 if (bank.changeUserPassword(cust->getId(), oldP, newP)) {
                     std::cout << "密码修改成功。\n";
                 }
             }
         } else if (op == 9) {
             long long aid;
-            if (!inputLongLong("要销户的账号: ", aid)) continue;
-            if (!hasAccount(cust, aid)) { std::cout << "只能操作本人名下账户。\n"; continue; }
+            std::cout << "要销户的账号: ";
+            std::cin >> aid;
+            if (!hasAccount(cust, aid)) {
+                std::cout << "只能操作本人名下账户。\n";
+                continue;
+            }
             if (bank.closeAccount(aid)) {
                 Logger::log("销户 " + std::to_string(aid));
                 std::cout << "销户成功。\n";
             }
         } else if (op == 10) {
             long long aid;
-            if (!inputLongLong("导出对账单账号: ", aid)) continue;
-            if (!hasAccount(cust, aid)) { std::cout << "只能导出本人名下账户对账单。\n"; continue; }
+            std::cout << "导出对账单账号: ";
+            std::cin >> aid;
+            if (!hasAccount(cust, aid)) {
+                std::cout << "只能导出本人名下账户对账单。\n";
+                continue;
+            }
             std::string fname = "statement_" + std::to_string(aid) + ".csv";
             std::ofstream out(fname);
             out << "流水号,时间,类型,付款,收款,金额,余额快照,备注\n";
@@ -247,6 +263,8 @@ static void customerMenu(Bank &bank, Customer *cust) {
                     << t->getRemark() << "\n";
             }
             std::cout << "已导出到 " << fname << "\n";
+        } else {
+            std::cout << "无效选项，请重新输入。\n";
         }
     }
 }
@@ -259,12 +277,10 @@ static void adminMenu(Bank &bank, User *admin) {
         std::cout << "3. 冻结 / 解冻账户     4. 全行一键结息\n";
         std::cout << "5. 调整各档利率        6. 查看流水 / 操作日志\n";
         std::cout << "0. 退出登录\n";
+        std::cout << "请选择: ";
 
-        long long op = -1;
-        if (!inputLongLong("请选择: ", op)) {
-            if (std::cin.eof()) break;
-            continue;
-        }
+        int op = -1;
+        if (!(std::cin >> op)) break;
         if (op == 0) break;
 
         if (op == 1) {
@@ -294,8 +310,12 @@ static void adminMenu(Bank &bank, User *admin) {
                 std::cout << "\n";
             }
         } else if (op == 3) {
-            long long mode, aid;
-            if (!inputLongLong("1=冻结  2=解冻: ", mode) || !inputLongLong("账号: ", aid)) continue;
+            int mode;
+            long long aid;
+            std::cout << "1=冻结  2=解冻: ";
+            std::cin >> mode;
+            std::cout << "账号: ";
+            std::cin >> aid;
             if (mode == 1 && bank.freezeAccount(aid)) {
                 Logger::log("管理员冻结账户 " + std::to_string(aid));
                 std::cout << "已冻结。\n";
@@ -319,10 +339,12 @@ static void adminMenu(Bank &bank, User *admin) {
                       << "%) 3=定1年(" << formatMoney(bank.getFixedRate(12) * 100.0)
                       << "%) 4=定3年(" << formatMoney(bank.getFixedRate(36) * 100.0)
                       << "%) 5=信用日息(" << formatMoney(bank.getCreditDailyRate() * 100.0) << "%)\n";
-            long long tier;
+            int tier;
             double pct;
-            if (!inputLongLong("修改哪一档 [1-5]: ", tier) ||
-                !inputDouble("输入新利率百分比(如 1.75 代表 1.75%): ", pct)) continue;
+            std::cout << "修改哪一档 [1-5]: ";
+            std::cin >> tier;
+            std::cout << "输入新利率百分比(如 1.75 代表 1.75%): ";
+            std::cin >> pct;
             double newRate = pct / 100.0;
             bool ok = false;
             if (tier == 1) ok = bank.setCurrentRate(newRate);
@@ -330,20 +352,25 @@ static void adminMenu(Bank &bank, User *admin) {
             else if (tier == 3) ok = bank.setFixedRate(12, newRate);
             else if (tier == 4) ok = bank.setFixedRate(36, newRate);
             else if (tier == 5) ok = bank.setCreditDailyRate(newRate);
+            else std::cout << "档位编号不合法。\n";
             if (ok) {
                 Logger::log("管理员调整利率档位 " + std::to_string(tier));
                 std::cout << "利率已更新并即时生效。\n";
             }
         } else if (op == 6) {
-            long long sub = 0;
-            if (!inputLongLong("1=查看流水  2=查看操作日志: ", sub)) continue;
+            int sub = 0;
+            std::cout << "1=查看流水  2=查看操作日志: ";
+            std::cin >> sub;
             if (sub == 1) {
                 long long aid;
-                if (!inputLongLong("筛选账号 (0=全行): ", aid)) continue;
+                std::cout << "筛选账号 (0=全行): ";
+                std::cin >> aid;
                 showTransactions(bank, aid);
             } else if (sub == 2) {
                 for (const std::string &line : Logger::getAllLogs()) std::cout << line << "\n";
             }
+        } else {
+            std::cout << "无效选项，请重新输入。\n";
         }
     }
 }
@@ -363,11 +390,9 @@ int main() {
     while (true) {
         std::cout << "\n========= 银行账户管理系统 =========\n";
         std::cout << "1. 登录系统\n2. 注册新客户\n0. 保存并退出\n";
-        long long op = -1;
-        if (!inputLongLong("请选择: ", op)) {
-            if (std::cin.eof()) break;
-            continue;
-        }
+        std::cout << "请选择: ";
+        int op = -1;
+        if (!(std::cin >> op)) break;
 
         if (op == 0) {
             storage.save(bank);
@@ -377,9 +402,10 @@ int main() {
         } else if (op == 1) {
             long long uid;
             std::string pwd;
-            if (!inputLongLong("用户ID: ", uid)) continue;
+            std::cout << "用户ID: ";
+            std::cin >> uid;
             std::cout << "密码: ";
-            if (!(std::cin >> pwd)) break;
+            std::cin >> pwd;
             User *u = bank.login(uid, pwd);
             if (u != nullptr) {
                 Logger::log("用户 " + std::to_string(uid) + " 登录");
@@ -400,6 +426,8 @@ int main() {
                 Logger::log("新客户注册 ID:" + std::to_string(nid) + " 姓名:" + name);
                 std::cout << "注册成功！您的用户ID为: " << nid << "（请牢记，用于登录）\n";
             }
+        } else {
+            std::cout << "无效选项，请重新输入。\n";
         }
     }
     return 0;
