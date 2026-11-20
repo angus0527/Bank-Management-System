@@ -38,15 +38,13 @@ static bool hasAccount(const Customer *cust, long long aid) {
     return false;
 }
 
-// 按账号、类型、日期段筛选并调用 Transaction::display() 输出流水；cust 非空时仅展示本人账户流水
-static void showTransactions(const Bank &bank, long long accId, const Customer *cust = nullptr) {
-    int typeFilter = 0;
-    std::string startD, endD;
+// 读取流水查询条件（交易类型、起始日期、结束日期），格式有误返回 false
+static bool readTxFilter(int &typeFilter, std::string &startD, std::string &endD) {
     std::cout << "按类型筛选 (0=全部 1=存款 2=取款 3=转账 4=结息): ";
     std::cin >> typeFilter;
     if (typeFilter < 0 || typeFilter > 4) {
         std::cout << "类型编号不合法。\n";
-        return;
+        return false;
     }
     std::cout << "起始日期 (如 2026-10-01，输 0 不限): ";
     std::cin >> startD;
@@ -54,16 +52,36 @@ static void showTransactions(const Bank &bank, long long accId, const Customer *
     std::cout << "结束日期 (如 2026-12-31，输 0 不限): ";
     std::cin >> endD;
     if (endD == "0") endD.clear();
+    return true;
+}
+
+// 客户查询交易流水（只显示本人名下账户相关的流水）
+static void showCustomerTransactions(const Bank &bank, const Customer *cust, long long accId) {
+    int typeFilter = 0;
+    std::string startD, endD;
+    if (!readTxFilter(typeFilter, startD, endD)) return;
 
     std::vector<const Transaction *> list;
     for (const Transaction *t : bank.queryTransactions(accId, typeFilter, startD, endD)) {
-        if (cust != nullptr && !hasAccount(cust, t->getFromAccountId()) && !hasAccount(cust, t->getToAccountId())) {
-            continue;
+        if (hasAccount(cust, t->getFromAccountId()) || hasAccount(cust, t->getToAccountId())) {
+            list.push_back(t);
         }
-        list.push_back(t);
     }
 
-    std::cout << "\n--- 交易流水（共 " << list.size() << " 条）---\n";
+    std::cout << "\n--- 我的交易流水（共 " << list.size() << " 条）---\n";
+    for (const Transaction *t : list) {
+        t->display();
+    }
+}
+
+// 管理员查询交易流水（可查看全行或指定账号的所有流水）
+static void showAdminTransactions(const Bank &bank, long long accId) {
+    int typeFilter = 0;
+    std::string startD, endD;
+    if (!readTxFilter(typeFilter, startD, endD)) return;
+
+    std::vector<const Transaction *> list = bank.queryTransactions(accId, typeFilter, startD, endD);
+    std::cout << "\n--- 全行交易流水（共 " << list.size() << " 条）---\n";
     for (const Transaction *t : list) {
         t->display();
     }
@@ -77,7 +95,7 @@ static void customerMenu(Bank &bank, Customer *cust) {
         std::cout << "3. 取款 / 定期支取     4. 转账\n";
         std::cout << "5. 申请开户            6. 账户结息\n";
         std::cout << "7. 查询交易流水        8. 修改资料 / 改密码\n";
-        std::cout << "9. 账户销户            10. 导出对账单(CSV)\n";
+        std::cout << "9. 账户销户            10. 导出对账单\n";
         std::cout << "0. 退出登录\n";
         std::cout << "请选择: ";
 
@@ -209,7 +227,7 @@ static void customerMenu(Bank &bank, Customer *cust) {
                 std::cout << "结息账号: ";
                 std::cin >> aid;
                 if (!hasAccount(cust, aid)) {
-                    std::cout << "只能操作本人名下账户。\n";
+                    std::cout << "账号不存在。\n";
                     break;
                 }
                 double interest = bank.settleInterest(aid);
@@ -226,7 +244,7 @@ static void customerMenu(Bank &bank, Customer *cust) {
                     std::cout << "只能查询本人名下账户流水。\n";
                     break;
                 }
-                showTransactions(bank, aid, cust);
+                showCustomerTransactions(bank, cust, aid);
                 break;
             }
             case 8: {
@@ -402,7 +420,7 @@ static void adminMenu(Bank &bank, User *admin) {
                     long long aid;
                     std::cout << "筛选账号 (0=全行): ";
                     std::cin >> aid;
-                    showTransactions(bank, aid);
+                    showAdminTransactions(bank, aid);
                 } else if (sub == 2) {
                     for (const std::string &line : Logger::getAllLogs()) std::cout << line << "\n";
                 }
