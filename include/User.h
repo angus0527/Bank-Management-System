@@ -31,6 +31,9 @@ public:
     // 纯虚函数：返回当前用户的身份角色标识（"Admin" 或 "Customer"）
     virtual std::string role() const = 0;
 
+    // 纯虚函数：将用户信息格式化为单行文本，用于保存到 users.txt
+    virtual std::string serialize() const = 0;
+
     std::string getName() const {
         return name;
     }
@@ -56,6 +59,8 @@ public:
     std::string role() const override {
         return "Admin";
     }
+
+    std::string serialize() const override;
 };
 
 // 普通储户类（继承自 User）：在基类基础上扩展联系电话及名下持有的银行卡号列表（1:N 聚合关联）
@@ -69,6 +74,8 @@ public:
     std::string role() const override {
         return "Customer";
     }
+
+    std::string serialize() const override;
 
     std::string getPhoneNumber() const {
         return phoneNumber;

@@ -28,8 +28,18 @@ Admin::Admin(long long id, const std::string &name, const std::string &password)
     : User(id, name, password) {
 }
 
+// 序列化管理员为单行文本（电话占位为 0000）
+std::string Admin::serialize() const {
+    return "U|" + std::to_string(id) + "|A|" + name + "|" + password + "|0000";
+}
+
 Customer::Customer(long long id, const std::string &name, const std::string &password, const std::string &phoneNumber)
     : User(id, name, password), phoneNumber(phoneNumber) {
+}
+
+// 序列化储户为单行文本
+std::string Customer::serialize() const {
+    return "U|" + std::to_string(id) + "|C|" + name + "|" + password + "|" + phoneNumber;
 }
 
 // 顺序查找客户持卡列表，命中目标账号后将其移除，成功返回 true

@@ -48,24 +48,13 @@ TextFileStorage::TextFileStorage(std::string usersFile, std::string accountsFile
       transactionsPath(resolvePath(txFile)),
       ratesPath(resolvePath(ratesFile)) {}
 
-// 序列化保存全行用户：格式为 U|用户ID|角色(C/A)|姓名|混淆密码|电话
+// 多态调用每个用户对象的 serialize() 方法写入 users.txt
 void TextFileStorage::saveUsers(const Bank &bank) const {
     std::ofstream out(usersPath);
     if (!out.is_open()) return;
 
     for (const auto &pair : bank.getUsers()) {
-        long long id = pair.first;
-        const User *user = pair.second.get();
-        std::string role = (user->role() == "Admin") ? "A" : "C";
-        std::string phone = "0000";
-        if (role == "C") {
-            const Customer *cust = dynamic_cast<const Customer *>(user);
-            if (cust) {
-                phone = cust->getPhoneNumber();
-            }
-        }
-        out << "U|" << id << "|" << role << "|" << user->getName() << "|"
-            << user->getPassword() << "|" << phone << "\n";
+        out << pair.second->serialize() << "\n";
     }
 }
 
