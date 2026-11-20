@@ -110,10 +110,6 @@ long long Bank::openFixedAccount(long long ownerId, double initialDeposit, int t
         std::cout << "操作失败：定期开户金额必须大于 0。\n";
         return -1;
     }
-    if (termMonths != 3 && termMonths != 12 && termMonths != 36) {
-        std::cout << "操作失败：定期存期只支持 3 / 12 / 36 个月。\n";
-        return -1;
-    }
     long long id = nextAccountId++;
     auto account = std::make_unique<FixedAccount>(id, ownerId, initialDeposit, openDate,
                                                   termMonths, getFixedRate(termMonths),

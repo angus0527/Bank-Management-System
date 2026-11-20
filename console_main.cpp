@@ -177,6 +177,10 @@ static void customerMenu(Bank &bank, Customer *cust) {
                     double amount;
                     std::cout << "存期月数 (3/12/36): ";
                     std::cin >> term;
+                    if (term != 3 && term != 12 && term != 36) {
+                        std::cout << "操作失败：定期存期只支持 3 / 12 / 36 个月。\n";
+                        break;
+                    }
                     std::cout << "定期存入金额(元): ";
                     std::cin >> amount;
                     std::cout << "到期自动转存? (1=是 0=否): ";
