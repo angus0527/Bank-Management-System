@@ -40,7 +40,7 @@ public:
     bool changeUserPassword(long long userId, const std::string &oldPassword, const std::string &newPassword);
 
     // 三类账户开户（成功返回新账号，失败返回 -1）
-    long long openAccount(long long ownerId, double initialDeposit, const Date &openDate = Date::today());
+    long long openCurrentAccount(long long ownerId, double initialDeposit, const Date &openDate = Date::today());
     long long openFixedAccount(long long ownerId, double initialDeposit, int termMonths,
                                bool autoRenew = false, const Date &openDate = Date::today());
     long long openCreditAccount(long long ownerId, double creditLimit, const Date &openDate = Date::today());

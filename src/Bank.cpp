@@ -82,7 +82,7 @@ bool Bank::changeUserPassword(long long userId, const std::string &oldPassword, 
 }
 
 // 开立活期账户并绑定到客户名下，成功返回新账号
-long long Bank::openAccount(long long ownerId, double initialDeposit, const Date &openDate) {
+long long Bank::openCurrentAccount(long long ownerId, double initialDeposit, const Date &openDate) {
     Customer *customer = findCustomer(ownerId);
     if (customer == nullptr) return -1;
     initialDeposit = round2(initialDeposit);
