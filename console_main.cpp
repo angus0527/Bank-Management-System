@@ -253,8 +253,8 @@ static void adminMenu(Bank &bank, User *admin) {
         std::cout << "\n====== 管理员后台 [" << admin->getName() << "] ======\n";
         std::cout << "1. 账户总览与资金统计  2. 客户名册\n";
         std::cout << "3. 冻结 / 解冻账户     4. 全行结息\n";
-        std::cout << "5. 调整各档利率        6. 查看流水 / 操作日志\n";
-        std::cout << "0. 退出登录\n";
+        std::cout << "5. 调整各档利率        6. 查看交易流水\n";
+        std::cout << "7. 查看操作日志        0. 退出登录\n";
         std::cout << "请选择: ";
 
         int op = -1;
@@ -366,16 +366,15 @@ static void adminMenu(Bank &bank, User *admin) {
                 break;
             }
             case 6: {
-                int sub = 0;
-                std::cout << "1=查看流水  2=查看操作日志: ";
-                std::cin >> sub;
-                if (sub == 1) {
-                    long long aid;
-                    std::cout << "筛选账号 (0=全行): ";
-                    std::cin >> aid;
-                    showAdminTransactions(bank, aid);
-                } else if (sub == 2) {
-                    for (const std::string &line : Logger::getAllLogs()) std::cout << line << "\n";
+                long long aid;
+                std::cout << "筛选账号 (0=全行): ";
+                std::cin >> aid;
+                showAdminTransactions(bank, aid);
+                break;
+            }
+            case 7: {
+                for (const std::string &line : Logger::getAllLogs()) {
+                    std::cout << line << "\n";
                 }
                 break;
             }
