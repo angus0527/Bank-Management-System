@@ -1,10 +1,24 @@
 #include "../include/Bank.h"
 
+#include <ctime>
 #include <iostream>
+#include <random>
 
 #include "CreditAccount.h"
 #include "CurrentAccount.h"
 #include "FixedAccount.h"
+
+// 随机生成不重复的 16 位银行卡号（622202 开头 + 10 位随机数）
+long long Bank::generateAccountId() const {
+    static std::mt19937_64 rng(static_cast<unsigned long long>(std::time(nullptr)));
+    std::uniform_int_distribution<long long> dist(0, 9999999999LL);
+    while (true) {
+        long long id = 6222020000000000LL + dist(rng);
+        if (accounts.count(id) == 0) {
+            return id;
+        }
+    }
+}
 
 // 校验并获取客户指针（开户专用，管理员不能开户）
 Customer *Bank::findCustomer(long long ownerId) {
@@ -90,7 +104,7 @@ long long Bank::openCurrentAccount(long long ownerId, double initialDeposit, con
         std::cout << "操作失败：开户初始金额不能为负。\n";
         return -1;
     }
-    long long id = nextAccountId++;
+    long long id = generateAccountId();
     auto account = std::make_unique<CurrentAccount>(id, ownerId, initialDeposit, openDate, currentRate);
     if (initialDeposit > 0.0) {
         recordTx(TransactionType::DEP, 0, id, initialDeposit, initialDeposit, "开户存入");
@@ -110,7 +124,7 @@ long long Bank::openFixedAccount(long long ownerId, double initialDeposit, int t
         std::cout << "操作失败：定期开户金额必须大于 0。\n";
         return -1;
     }
-    long long id = nextAccountId++;
+    long long id = generateAccountId();
     auto account = std::make_unique<FixedAccount>(id, ownerId, initialDeposit, openDate,
                                                   termMonths, getFixedRate(termMonths),
                                                   autoRenew, currentRate);
@@ -129,7 +143,7 @@ long long Bank::openCreditAccount(long long ownerId, double creditLimit, const D
         std::cout << "操作失败：信用额度必须大于 0。\n";
         return -1;
     }
-    long long id = nextAccountId++;
+    long long id = generateAccountId();
     auto account = std::make_unique<CreditAccount>(id, ownerId, 0.0, openDate, creditLimit, creditDailyRate);
     customer->addAccount(id);
     accounts[id] = std::move(account);
@@ -424,10 +438,9 @@ bool Bank::addUser(std::unique_ptr<User> user) {
     return true;
 }
 
-// 装载账户对象并顺延下一个可用账号（读档用）
+// 装载账户对象（读档用）
 void Bank::addAccount(std::unique_ptr<Account> account) {
     long long id = account->getAccountId();
-    if (id >= nextAccountId) nextAccountId = id + 1;
     accounts[id] = std::move(account);
 }
 
@@ -437,7 +450,5 @@ void Bank::addTransaction(const Transaction &t) {
     transactions.push_back(t);
 }
 
-// 手动设置发号器起始账号
-void Bank::setNextAccountId(long long id) { nextAccountId = id; }
 // 手动设置发号器起始流水号
 void Bank::setNextTransactionId(long long id) { nextTransactionId = id; }

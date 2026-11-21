@@ -17,7 +17,6 @@ class Bank {
     std::map<long long, std::unique_ptr<Account>> accounts;
     std::vector<Transaction> transactions;
     long long nextUserId = 20001;
-    long long nextAccountId = 62001;
     long long nextTransactionId = 1;
 
     // 基准利率配置（直接用小数表示，如 0.0035 表示 0.35%）
@@ -28,6 +27,9 @@ class Bank {
     double creditDailyRate = 0.0005; // 信用日利率 0.05%
 
     Customer *findCustomer(long long ownerId);
+
+    // 随机生成不重复的 16 位银行卡号（622202 开头）
+    long long generateAccountId() const;
 
     void recordTx(TransactionType type, long long fromId, long long toId, double amount,
                   double balanceSnapshot, const std::string &remark);
@@ -80,10 +82,8 @@ public:
     bool addUser(std::unique_ptr<User> user);
     void addAccount(std::unique_ptr<Account> account);
     void addTransaction(const Transaction &t);
-    void setNextAccountId(long long id);
     void setNextTransactionId(long long id);
 
-    long long getNextAccountId() const { return nextAccountId; }
     long long getNextTransactionId() const { return nextTransactionId; }
     const std::map<long long, std::unique_ptr<Account>> &getAccounts() const { return accounts; }
     const std::map<long long, std::unique_ptr<User>> &getUsers() const { return users; }
