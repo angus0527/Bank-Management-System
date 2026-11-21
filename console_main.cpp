@@ -259,15 +259,13 @@ static void adminMenu(Bank &bank, User *admin) {
             case 1: {
                 double curSum = 0.0, fixSum = 0.0, crDebt = 0.0;
                 int curN = 0, fixN = 0, crN = 0;
-                for (const auto &pair : bank.getAccounts()) {
-                    long long aid = pair.first;
-                    const Account *acc = pair.second.get();
+                for (const auto &[aid, acc] : bank.getAccounts()) {
                     std::cout << "账号:" << aid << " | 户主:" << acc->getOwnerId()
                               << " | " << accTypeName(acc->getAccountType())
                               << " | 余额:" << formatMoney(acc->getBalance()) << "元 | " << acc->getStatusString() << "\n";
                     if (acc->getAccountType() == AccountType::SAVINGS) { curN++; curSum += acc->getBalance(); }
                     else if (acc->getAccountType() == AccountType::FIXED) { fixN++; fixSum += acc->getBalance(); }
-                    else if (const CreditAccount *c = dynamic_cast<const CreditAccount *>(acc)) { crN++; crDebt += c->getDebt(); }
+                    else if (const CreditAccount *c = dynamic_cast<const CreditAccount *>(acc.get())) { crN++; crDebt += c->getDebt(); }
                 }
                 std::cout << "--- 统计: 活期 " << curN << "户(" << formatMoney(curSum) << "元), "
                           << "定期 " << fixN << "户(" << formatMoney(fixSum) << "元), "
@@ -275,11 +273,9 @@ static void adminMenu(Bank &bank, User *admin) {
                 break;
             }
             case 2: {
-                for (const auto &pair : bank.getUsers()) {
-                    long long uid = pair.first;
-                    const User *u = pair.second.get();
+                for (const auto &[uid, u] : bank.getUsers()) {
                     std::cout << "ID:" << uid << " | " << u->getName() << " | " << u->role();
-                    if (const Customer *c = dynamic_cast<const Customer *>(u)) {
+                    if (const Customer *c = dynamic_cast<const Customer *>(u.get())) {
                         std::cout << " | 电话:" << c->getPhoneNumber() << " | 卡数:" << c->getAccountIds().size();
                     }
                     std::cout << "\n";
@@ -305,9 +301,9 @@ static void adminMenu(Bank &bank, User *admin) {
             case 4: {
                 int rolled = bank.processMaturityRollovers();
                 double sumInt = 0.0;
-                for (const auto &pair : bank.getAccounts()) {
-                    if (pair.second->isNormal()) {
-                        double interest = bank.settleInterest(pair.first);
+                for (const auto &[aid, acc] : bank.getAccounts()) {
+                    if (acc->isNormal()) {
+                        double interest = bank.settleInterest(aid);
                         if (interest > 0.0) sumInt += interest;
                     }
                 }

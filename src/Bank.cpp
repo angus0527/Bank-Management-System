@@ -257,9 +257,8 @@ double Bank::settleInterest(long long accountId, const Date &today) {
 // 批量处理全行已到期且开启自动转存的定期账户，返回转存笔数
 int Bank::processMaturityRollovers(const Date &today) {
     int count = 0;
-    for (const auto &pair : accounts) {
-        long long aid = pair.first;
-        FixedAccount *fix = dynamic_cast<FixedAccount *>(pair.second.get());
+    for (const auto &[aid, acc] : accounts) {
+        FixedAccount *fix = dynamic_cast<FixedAccount *>(acc.get());
         if (!fix || !fix->isNormal() || !fix->isAutoRenew() || fix->getBalance() <= 0.0) continue;
         while (today >= fix->getMaturityDate()) {
             double interest = fix->settleInterest(today);
@@ -315,10 +314,9 @@ bool Bank::setCurrentRate(double rate) {
         return false;
     }
     currentRate = rate;
-    for (const auto &pair : accounts) {
-        Account *acc = pair.second.get();
-        if (CurrentAccount *cur = dynamic_cast<CurrentAccount *>(acc)) cur->setRate(rate);
-        else if (FixedAccount *fix = dynamic_cast<FixedAccount *>(acc)) fix->setCurrentRate(rate);
+    for (const auto &[aid, acc] : accounts) {
+        if (CurrentAccount *cur = dynamic_cast<CurrentAccount *>(acc.get())) cur->setRate(rate);
+        else if (FixedAccount *fix = dynamic_cast<FixedAccount *>(acc.get())) fix->setCurrentRate(rate);
     }
     return true;
 }
@@ -337,8 +335,8 @@ bool Bank::setFixedRate(int termMonths, double rate) {
         return false;
     }
 
-    for (const auto &pair : accounts) {
-        if (FixedAccount *fix = dynamic_cast<FixedAccount *>(pair.second.get())) {
+    for (const auto &[aid, acc] : accounts) {
+        if (FixedAccount *fix = dynamic_cast<FixedAccount *>(acc.get())) {
             if (fix->getTermMonths() == termMonths) fix->setRate(rate);
         }
     }
@@ -352,8 +350,8 @@ bool Bank::setCreditDailyRate(double rate) {
         return false;
     }
     creditDailyRate = rate;
-    for (const auto &pair : accounts) {
-        if (CreditAccount *cr = dynamic_cast<CreditAccount *>(pair.second.get())) cr->setDailyRate(rate);
+    for (const auto &[aid, acc] : accounts) {
+        if (CreditAccount *cr = dynamic_cast<CreditAccount *>(acc.get())) cr->setDailyRate(rate);
     }
     return true;
 }
@@ -382,7 +380,9 @@ std::vector<const Transaction *> Bank::queryTransactions(long long accountId, in
     std::vector<const Transaction *> result;
     for (const Transaction &t : transactions) {
         if (accountId != 0 && t.getFromAccountId() != accountId && t.getToAccountId() != accountId) continue;
+        //判断交易流水类型
         if (typeFilter != 0 && static_cast<int>(t.getType()) != typeFilter) continue;
+        //判断日期是否在内
         std::string txDay = t.getDatetime().substr(0, 10);
         if (!startDate.empty() && txDay < startDate) continue;
         if (!endDate.empty() && txDay > endDate) continue;

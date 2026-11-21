@@ -53,8 +53,8 @@ void TextFileStorage::saveUsers(const Bank &bank) const {
     std::ofstream out(usersPath);
     if (!out.is_open()) return;
 
-    for (const auto &pair : bank.getUsers()) {
-        out << pair.second->serialize() << "\n";
+    for (const auto &[uid, user] : bank.getUsers()) {
+        out << user->serialize() << "\n";
     }
 }
 
@@ -63,8 +63,8 @@ void TextFileStorage::saveAccounts(const Bank &bank) const {
     std::ofstream out(accountsPath);
     if (!out.is_open()) return;
 
-    for (const auto &pair : bank.getAccounts()) {
-        out << pair.second->serialize() << "\n";
+    for (const auto &[aid, account] : bank.getAccounts()) {
+        out << account->serialize() << "\n";
     }
 }
 
