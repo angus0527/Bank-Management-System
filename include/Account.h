@@ -56,9 +56,9 @@ public:
     // 将账户完整属性格式化为单行文本，用于保存到 accounts.txt
     virtual std::string serialize() const = 0;
 
-    void freeze();
+    bool freeze();
 
-    void unfreeze();
+    bool unfreeze();
 
     // 销户（要求余额为 0）
     bool closeAccount();

@@ -88,16 +88,32 @@ void Account::displayInfo() const {
     std::cout << "【当前余额】: " << formatMoney(balance) << " 元\n";
 }
 
-// 冻结账户（禁止存取转）
-void Account::freeze() {
+// 冻结账户（仅正常状态可冻结，已冻结或已销户返回 false）
+bool Account::freeze() {
+    if (status == AccountStatus::CLOSED) {
+        std::cout << "操作失败：账户已销户，无法冻结。\n";
+        return false;
+    }
+    if (status == AccountStatus::FROZEN) {
+        std::cout << "操作失败：该账户已处于冻结状态。\n";
+        return false;
+    }
     status = AccountStatus::FROZEN;
+    return true;
 }
 
-// 解冻账户（恢复为正常状态）
-void Account::unfreeze() {
-    if (status == AccountStatus::FROZEN) {
-        status = AccountStatus::NORMAL;
+// 解冻账户（仅已冻结状态可解冻，未冻结或已销户返回 false）
+bool Account::unfreeze() {
+    if (status == AccountStatus::CLOSED) {
+        std::cout << "操作失败：账户已销户，无法解冻。\n";
+        return false;
     }
+    if (status != AccountStatus::FROZEN) {
+        std::cout << "操作失败：该账户未处于冻结状态，无需解冻。\n";
+        return false;
+    }
+    status = AccountStatus::NORMAL;
+    return true;
 }
 
 // 销户：余额清零时才允许标记为已销户

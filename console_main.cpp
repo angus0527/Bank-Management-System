@@ -304,6 +304,10 @@ static void adminMenu(Bank &bank, User *admin) {
                 long long aid;
                 std::cout << "1=冻结  2=解冻: ";
                 std::cin >> mode;
+                if (mode != 1 && mode != 2) {
+                    std::cout << "无效选项，请输入 1 或 2。\n";
+                    break;
+                }
                 std::cout << "账号: ";
                 std::cin >> aid;
                 if (mode == 1 && bank.freezeAccount(aid)) {

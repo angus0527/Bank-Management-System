@@ -292,8 +292,7 @@ bool Bank::freezeAccount(long long accountId) {
         std::cout << "操作失败：账户 " << accountId << " 不存在。\n";
         return false;
     }
-    acc->freeze();
-    return true;
+    return acc->freeze();
 }
 
 // 解冻指定账户
@@ -303,8 +302,7 @@ bool Bank::unfreezeAccount(long long accountId) {
         std::cout << "操作失败：账户 " << accountId << " 不存在。\n";
         return false;
     }
-    acc->unfreeze();
-    return true;
+    return acc->unfreeze();
 }
 
 // 销户：清零校验通过后从客户持卡列表中移除
