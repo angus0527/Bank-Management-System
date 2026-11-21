@@ -245,7 +245,7 @@ bool Bank::transfer(long long fromAccountId, long long toAccountId, double amoun
     return true;
 }
 
-// 对指定账户结算截至 today 的利息并记录结息流水
+// 对指定账户结算截至 today 的利息并记录结息流水（开启自动转存的定期账户会连续转存到最新周期）
 double Bank::settleInterest(long long accountId, const Date &today) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -255,6 +255,19 @@ double Bank::settleInterest(long long accountId, const Date &today) {
     if (!acc->isNormal()) {
         std::cout << "操作失败：账户已" << acc->getStatusString() << "，无法结息。\n";
         return -1.0;
+    }
+    if (FixedAccount *fix = dynamic_cast<FixedAccount *>(acc)) {
+        if (fix->isAutoRenew()) {
+            double totalInterest = 0.0;
+            while (fix->getBalance() > 0.0 && today >= fix->getMaturityDate()) {
+                double interest = fix->settleInterest(today);
+                if (interest > 0.0) {
+                    totalInterest = round2(totalInterest + interest);
+                    recordTx(TransactionType::INT, 0, accountId, interest, fix->getBalance(), "定期到期自动转存结息");
+                }
+            }
+            return totalInterest;
+        }
     }
     double interest = acc->settleInterest(today);
     if (interest > 0.0) {
@@ -267,18 +280,14 @@ double Bank::settleInterest(long long accountId, const Date &today) {
     return interest;
 }
 
-//把所有的定期账户续订
-// 批量处理全行已到期且开启自动转存的定期账户，返回转存笔数
+// 批量处理全行已到期且开启自动转存的定期账户，返回转存账户数
 int Bank::processMaturityRollovers(const Date &today) {
     int count = 0;
     for (const auto &[aid, acc] : accounts) {
         FixedAccount *fix = dynamic_cast<FixedAccount *>(acc.get());
         if (!fix || !fix->isNormal() || !fix->isAutoRenew() || fix->getBalance() <= 0.0) continue;
-        while (today >= fix->getMaturityDate()) {
-            double interest = fix->settleInterest(today);
-            if (interest > 0.0) {
-                recordTx(TransactionType::INT, 0, aid, interest, fix->getBalance(), "定期到期自动转存结息");
-            }
+        if (today >= fix->getMaturityDate()) {
+            settleInterest(aid, today);
             count++;
         }
     }

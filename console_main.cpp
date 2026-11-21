@@ -252,7 +252,7 @@ static void adminMenu(Bank &bank, User *admin) {
     while (true) {
         std::cout << "\n====== 管理员后台 [" << admin->getName() << "] ======\n";
         std::cout << "1. 账户总览与资金统计  2. 客户名册\n";
-        std::cout << "3. 冻结 / 解冻账户     4. 全行一键结息\n";
+        std::cout << "3. 冻结 / 解冻账户     4. 全行结息\n";
         std::cout << "5. 调整各档利率        6. 查看流水 / 操作日志\n";
         std::cout << "0. 退出登录\n";
         std::cout << "请选择: ";
@@ -320,12 +320,18 @@ static void adminMenu(Bank &bank, User *admin) {
                 break;
             }
             case 4: {
-                int rolled = bank.processMaturityRollovers();
+                int rolled = 0;
                 double sumInt = 0.0;
+                Date today = Date::today();
                 for (const auto &[aid, acc] : bank.getAccounts()) {
-                    if (acc->isNormal()) {
-                        double interest = bank.settleInterest(aid);
-                        if (interest > 0.0) sumInt += interest;
+                    if (!acc->isNormal()) continue;
+                    FixedAccount *fix = dynamic_cast<FixedAccount *>(acc.get());
+                    bool willRoll = (fix != nullptr && fix->isAutoRenew() && fix->getBalance() > 0.0 &&
+                                     today >= fix->getMaturityDate());
+                    double interest = bank.settleInterest(aid, today);
+                    if (interest > 0.0) {
+                        sumInt = round2(sumInt + interest);
+                        if (willRoll) rolled++;
                     }
                 }
                 std::cout << "全行结息完成：自动转存 " << rolled << " 笔，累计利息 " << formatMoney(sumInt) << " 元\n";
