@@ -351,12 +351,14 @@ static void adminMenu(Bank &bank, User *admin) {
                 std::cin >> pct;
                 double newRate = pct / 100.0;
                 bool ok = false;
-                if (tier == 1) ok = bank.setCurrentRate(newRate);
-                else if (tier == 2) ok = bank.setFixedRate(3, newRate);
-                else if (tier == 3) ok = bank.setFixedRate(12, newRate);
-                else if (tier == 4) ok = bank.setFixedRate(36, newRate);
-                else if (tier == 5) ok = bank.setCreditDailyRate(newRate);
-                else std::cout << "档位编号不合法。\n";
+                switch (tier) {
+                    case 1: ok = bank.setCurrentRate(newRate); break;
+                    case 2: ok = bank.setFixedRate(3, newRate); break;
+                    case 3: ok = bank.setFixedRate(12, newRate); break;
+                    case 4: ok = bank.setFixedRate(36, newRate); break;
+                    case 5: ok = bank.setCreditDailyRate(newRate); break;
+                    default: std::cout << "档位编号不合法。\n"; break;
+                }
                 if (ok) {
                     Logger::log("管理员调整利率档位 " + std::to_string(tier));
                     std::cout << "利率已更新并即时生效。\n";
