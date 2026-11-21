@@ -28,7 +28,13 @@ static void customerMenu(Bank &bank, Customer *cust) {
         std::cout << "请选择: ";
 
         int op = -1;
-        if (!(std::cin >> op)) break;
+        if (!(std::cin >> op)) {
+            if (std::cin.eof()) break;
+            std::cin.clear();
+            std::cin.ignore(1024, '\n');
+            std::cout << "输入格式有误，请输入数字。\n";
+            continue;
+        }
         if (op == 0) break;
 
         switch (op) {
@@ -155,7 +161,7 @@ static void customerMenu(Bank &bank, Customer *cust) {
                 std::cout << "结息账号: ";
                 std::cin >> aid;
                 if (!hasAccount(cust, aid)) {
-                    std::cout << "账号不存在。\n";
+                    std::cout << "只能操作本人名下账户。\n";
                     break;
                 }
                 double interest = bank.settleInterest(aid);
@@ -252,24 +258,35 @@ static void adminMenu(Bank &bank, User *admin) {
         std::cout << "请选择: ";
 
         int op = -1;
-        if (!(std::cin >> op)) break;
+        if (!(std::cin >> op)) {
+            if (std::cin.eof()) break;
+            std::cin.clear();
+            std::cin.ignore(1024, '\n');
+            std::cout << "输入格式有误，请输入数字。\n";
+            continue;
+        }
         if (op == 0) break;
 
         switch (op) {
             case 1: {
                 double curSum = 0.0, fixSum = 0.0, crDebt = 0.0;
-                int curN = 0, fixN = 0, crN = 0;
+                int curN = 0, fixN = 0, crN = 0, closedN = 0;
                 for (const auto &[aid, acc] : bank.getAccounts()) {
                     std::cout << "账号:" << aid << " | 户主:" << acc->getOwnerId()
                               << " | " << accTypeName(acc->getAccountType())
                               << " | 余额:" << formatMoney(acc->getBalance()) << "元 | " << acc->getStatusString() << "\n";
+                    if (acc->getStatus() == AccountStatus::CLOSED) {
+                        closedN++;
+                        continue;
+                    }
                     if (acc->getAccountType() == AccountType::SAVINGS) { curN++; curSum += acc->getBalance(); }
                     else if (acc->getAccountType() == AccountType::FIXED) { fixN++; fixSum += acc->getBalance(); }
                     else if (const CreditAccount *c = dynamic_cast<const CreditAccount *>(acc.get())) { crN++; crDebt += c->getDebt(); }
                 }
-                std::cout << "--- 统计: 活期 " << curN << "户(" << formatMoney(curSum) << "元), "
+                std::cout << "--- 在用统计: 活期 " << curN << "户(" << formatMoney(curSum) << "元), "
                           << "定期 " << fixN << "户(" << formatMoney(fixSum) << "元), "
-                          << "信用 " << crN << "户(总欠款" << formatMoney(crDebt) << "元) ---\n";
+                          << "信用 " << crN << "户(总欠款" << formatMoney(crDebt) << "元), "
+                          << "已销户 " << closedN << "户 ---\n";
                 break;
             }
             case 2: {
@@ -375,7 +392,13 @@ int main() {
         std::cout << "1. 登录系统\n2. 注册新客户\n0. 保存并退出\n";
         std::cout << "请选择: ";
         int op = -1;
-        if (!(std::cin >> op)) break;
+        if (!(std::cin >> op)) {
+            if (std::cin.eof()) break;
+            std::cin.clear();
+            std::cin.ignore(1024, '\n');
+            std::cout << "输入格式有误，请输入数字。\n";
+            continue;
+        }
 
         switch (op) {
             case 0: {
@@ -420,6 +443,9 @@ int main() {
                 std::cout << "无效选项，请重新输入。\n";
                 break;
         }
+    }
+    if (running) {
+        storage.save(bank);
     }
     return 0;
 }

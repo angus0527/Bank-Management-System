@@ -54,7 +54,8 @@ void Transaction::display() const {
     } else if (type == TransactionType::WDR) {
         std::cout << "（账户 " << fromAccountId << "）";
     } else {
-        std::cout << "（账户 " << toAccountId << "）";
+        long long showId = (toAccountId != 0) ? toAccountId : fromAccountId;
+        std::cout << "（账户 " << showId << "）";
     }
     std::cout << "，交易后余额 " << formatMoney(balanceSnapshot) << " 元"
               << (remark.empty() ? "" : "，" + remark) << "\n";
