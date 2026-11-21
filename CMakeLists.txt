@@ -12,6 +12,8 @@ endif ()
 
 add_executable(BankManage
         console_main.cpp
+        include/ConsoleUI.h
+        src/ConsoleUI.cpp
         include/Account.h
         src/Account.cpp
         include/CurrentAccount.h
