@@ -4,8 +4,8 @@
 
 // 开户时尚未结息，上次结息日即开户日
 CurrentAccount::CurrentAccount(long long id, long long ownerId, double initialBalance,
-                               const Date &openDate, double rate_)
-    : Account(id, ownerId, initialBalance, openDate), rate(rate_), lastSettleDate(openDate) {
+                               const Date &openDate, double rate)
+    : Account(id, ownerId, initialBalance, openDate), rate(rate), lastSettleDate(openDate) {
 }
 
 // 按日计息：本金 * 年利率 * 天数 / 360

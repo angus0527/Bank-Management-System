@@ -5,15 +5,15 @@
 
 // 构造定期账户：校验存期（仅支持 3/12/36 个月）并计算到期日
 FixedAccount::FixedAccount(long long id, long long ownerId, double initialBalance,
-                           const Date &openDate, int termMonths_, double rate_,
-                           bool autoRenew_, double currentRate_)
+                           const Date &openDate, int termMonths, double rate,
+                           bool autoRenew, double currentRate)
     : Account(id, ownerId, initialBalance, openDate),
-      termMonths((termMonths_ == 3 || termMonths_ == 12 || termMonths_ == 36) ? termMonths_ : 12),
-      rate(rate_),
-      currentRate(currentRate_),
-      maturityDate(openDate.addMonths(termMonths)),
-      autoRenew(autoRenew_) {
-    if (termMonths_ != 3 && termMonths_ != 12 && termMonths_ != 36) {
+      termMonths((termMonths == 3 || termMonths == 12 || termMonths == 36) ? termMonths : 12),
+      rate(rate),
+      currentRate(currentRate),
+      maturityDate(openDate.addMonths(this->termMonths)),
+      autoRenew(autoRenew) {
+    if (termMonths != 3 && termMonths != 12 && termMonths != 36) {
         std::cout << "提示：定期存期仅支持 3、12 或 36 个月，已默认按 12 个月处理。\n";
     }
 }

@@ -3,12 +3,12 @@
 #include <cmath>
 #include <iomanip>
 #include <sstream>
-// 保留两位小数的辅助函数
+
 double round2(double value) {
     return std::round(value * 100.0) / 100.0;
 }
 
-// 金额to string
+
 std::string formatMoney(double yuan) {
     if (std::abs(yuan) < 0.005) {
         return "0.00";
@@ -18,9 +18,8 @@ std::string formatMoney(double yuan) {
     return oss.str();
 }
 
-// 构造账户基类：初始化账号、户主、余额和开户日，默认正常状态
-Account::Account(long long id, long long ownerId_, double initialBalance, const Date &date)
-    : accountId(id), ownerId(ownerId_), balance(round2(initialBalance)),
+Account::Account(long long id, long long ownerId, double initialBalance, const Date &date)
+    : accountId(id), ownerId(ownerId), balance(round2(initialBalance)),
       status(AccountStatus::NORMAL), openDate(date) {
     if (balance < 0.0) {
         std::cout << "提示：初始金额不能为负，已按 0.00 元处理。\n";
@@ -28,7 +27,6 @@ Account::Account(long long id, long long ownerId_, double initialBalance, const 
     }
 }
 
-// 返回账户状态的中文名称
 std::string Account::getStatusString() const {
     switch (status) {
         case AccountStatus::NORMAL:
@@ -87,7 +85,6 @@ void Account::displayInfo() const {
     std::cout << "【当前余额】: " << formatMoney(balance) << " 元\n";
 }
 
-// 冻结账户（仅正常状态可冻结，已冻结或已销户返回 false）
 bool Account::freeze() {
     if (status == AccountStatus::CLOSED) {
         std::cout << "操作失败：账户已销户，无法冻结。\n";
@@ -101,7 +98,6 @@ bool Account::freeze() {
     return true;
 }
 
-// 解冻账户（仅已冻结状态可解冻，未冻结或已销户返回 false）
 bool Account::unfreeze() {
     if (status == AccountStatus::CLOSED) {
         std::cout << "操作失败：账户已销户，无法解冻。\n";
