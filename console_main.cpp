@@ -183,26 +183,41 @@ static void customerMenu(Bank &bank, Customer *cust) {
             }
             case 8: {
                 int sub = 0;
-                std::cout << "1=修改姓名电话  2=修改密码: ";
+                std::cout << "1=修改姓名  2=修改电话  3=修改密码: ";
                 std::cin >> sub;
-                if (sub == 1) {
-                    std::string name, phone;
-                    std::cout << "新姓名: ";
-                    std::cin >> name;
-                    std::cout << "新电话: ";
-                    std::cin >> phone;
-                    if (bank.updateUserInfo(cust->getId(), name, phone)) {
-                        std::cout << "资料已更新。\n";
+                switch (sub) {
+                    case 1: {
+                        std::string name;
+                        std::cout << "新姓名: ";
+                        std::cin >> name;
+                        if (bank.updateUserName(cust->getId(), name)) {
+                            std::cout << "姓名已更新。\n";
+                        }
+                        break;
                     }
-                } else if (sub == 2) {
-                    std::string oldP, newP;
-                    std::cout << "原密码: ";
-                    std::cin >> oldP;
-                    std::cout << "新密码: ";
-                    std::cin >> newP;
-                    if (bank.changeUserPassword(cust->getId(), oldP, newP)) {
-                        std::cout << "密码修改成功。\n";
+                    case 2: {
+                        std::string phone;
+                        std::cout << "新电话: ";
+                        std::cin >> phone;
+                        if (bank.updateCustomerPhone(cust->getId(), phone)) {
+                            std::cout << "电话已更新。\n";
+                        }
+                        break;
                     }
+                    case 3: {
+                        std::string oldP, newP;
+                        std::cout << "原密码: ";
+                        std::cin >> oldP;
+                        std::cout << "新密码: ";
+                        std::cin >> newP;
+                        if (bank.changeUserPassword(cust->getId(), oldP, newP)) {
+                            std::cout << "密码修改成功。\n";
+                        }
+                        break;
+                    }
+                    default:
+                        std::cout << "无效选项。\n";
+                        break;
                 }
                 break;
             }

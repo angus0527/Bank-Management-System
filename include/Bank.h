@@ -39,8 +39,10 @@ public:
     User *login(long long userId, const std::string &password);
     //注册
     long long registerCustomer(const std::string &name, const std::string &password, const std::string &phone);
-    //修改信息
-    bool updateUserInfo(long long userId, const std::string &newName, const std::string &newPhone = "");
+    // 修改姓名
+    bool updateUserName(long long userId, const std::string &newName);
+    // 修改电话
+    bool updateCustomerPhone(long long userId, const std::string &newPhone);
     //改密码
     bool changeUserPassword(long long userId, const std::string &oldPassword, const std::string &newPassword);
 

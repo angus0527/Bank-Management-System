@@ -14,13 +14,14 @@ long long Bank::generateAccountId() const {
     std::uniform_int_distribution<long long> dist(0, 9999999999LL);
     while (true) {
         long long id = 6222020000000000LL + dist(rng);
+        //判断当前生成id是否重复
         if (accounts.count(id) == 0) {
             return id;
         }
     }
 }
 
-// 校验并获取客户指针（开户专用，管理员不能开户）
+
 Customer *Bank::findCustomer(long long ownerId) {
     User *u = findUser(ownerId);
     if (u == nullptr) {
@@ -35,9 +36,10 @@ Customer *Bank::findCustomer(long long ownerId) {
     return customer;
 }
 
-// 用户登录验证，成功返回 User 指针，失败返回 nullptr
+
 User *Bank::login(long long userId, const std::string &password) {
     auto it = users.find(userId);
+    //找不到用户id或者密码验证失败则返回空指针
     if (it == users.end() || !it->second->verifyPassword(password)) {
         std::cout << "登录失败：用户 " << userId << " 不存在或密码错误。\n";
         return nullptr;
@@ -45,7 +47,7 @@ User *Bank::login(long long userId, const std::string &password) {
     return it->second.get();
 }
 
-// 注册新客户，自动分配用户 ID 并加密保存密码
+
 long long Bank::registerCustomer(const std::string &name, const std::string &password, const std::string &phone) {
     if (name.empty() || password.empty()) {
         std::cout << "注册失败：姓名和密码不能为空。\n";
@@ -56,8 +58,9 @@ long long Bank::registerCustomer(const std::string &name, const std::string &pas
     return id;
 }
 
-// 修改用户姓名与联系电话
-bool Bank::updateUserInfo(long long userId, const std::string &newName, const std::string &newPhone) {
+
+// 修改姓名
+bool Bank::updateUserName(long long userId, const std::string &newName) {
     User *user = findUser(userId);
     if (user == nullptr) {
         std::cout << "操作失败：用户 " << userId << " 不存在。\n";
@@ -68,11 +71,21 @@ bool Bank::updateUserInfo(long long userId, const std::string &newName, const st
         return false;
     }
     user->setName(newName);
-    if (Customer *cust = dynamic_cast<Customer *>(user)) {
-        if (!newPhone.empty()) {
-            cust->setPhoneNumber(newPhone);
-        }
+    return true;
+}
+
+// 修改电话
+bool Bank::updateCustomerPhone(long long userId, const std::string &newPhone) {
+    Customer *cust = dynamic_cast<Customer *>(findUser(userId));
+    if (cust == nullptr) {
+        std::cout << "操作失败：客户 " << userId << " 不存在。\n";
+        return false;
     }
+    if (newPhone.empty()) {
+        std::cout << "操作失败：电话不能为空。\n";
+        return false;
+    }
+    cust->setPhoneNumber(newPhone);
     return true;
 }
 
