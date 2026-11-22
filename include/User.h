@@ -4,34 +4,31 @@
 #include <string>
 #include <vector>
 
-// 用户抽象基类：封装全行用户的公共身份属性与密码鉴权逻辑
-// 派生出 Admin（管理员）与 Customer（普通储户）两个子类，通过纯虚函数 role() 实现权限多态
+
 class User {
 protected:
-    long long id;           // 用户唯一编号（管理员 10001 起，储户 20001 起）
+    long long id;           // 用户id
     std::string name;       // 用户姓名
-    std::string password;   // 混淆后的登录密文（不存明文）
+    std::string password;   // 用户密码
 
 public:
-    // 虚析构函数：保证通过基类指针释放派生类对象时正确触发子类析构，避免内存泄漏
     virtual ~User() {}
 
-    // 构造函数：直接保存已混淆加密后的密码密文
     User(long long id, const std::string &name, const std::string &password);
 
-    // 将明文密码做异或混淆，得到存储用密文
+    // 密码加密
     static std::string encryptPassword(const std::string &plain);
 
-    // 验证输入明文密码与内部存储的密文是否匹配
+    // 验证密码
     bool verifyPassword(const std::string &password) const;
 
-    // 修改登录密码（内部会自动完成混淆后再保存）
+    // 修改密码
     void changePassword(const std::string &newPassword);
 
-    // 纯虚函数：返回当前用户的身份角色标识（"Admin" 或 "Customer"）
+    //返回Admin或者Customer
     virtual std::string role() const = 0;
 
-    // 纯虚函数：将用户信息格式化为单行文本，用于保存到 users.txt
+    // 转为string保存data
     virtual std::string serialize() const = 0;
 
     std::string getName() const {
@@ -51,7 +48,6 @@ public:
     }
 };
 
-// 系统管理员类（继承自 User）：具备全行账户风控、利率调控及日志审计等后台权限
 class Admin : public User {
 public:
     Admin(long long id, const std::string &name, const std::string &password);
@@ -63,10 +59,9 @@ public:
     std::string serialize() const override;
 };
 
-// 普通储户类（继承自 User）：在基类基础上扩展联系电话及名下持有的银行卡号列表（1:N 聚合关联）
 class Customer : public User {
-    std::string phoneNumber;             // 绑定联系电话
-    std::vector<long long> accountId;    // 名下绑定的银行账号列表
+    std::string phoneNumber;             // 电话
+    std::vector<long long> accountId;    // 名下的账户列表
 
 public:
     Customer(long long id, const std::string &name, const std::string &password, const std::string &phoneNumber);
@@ -85,12 +80,10 @@ public:
         phoneNumber = newPhone;
     }
 
-    // 开户时将新账号绑定到该客户名下
     void addAccount(long long id) {
         accountId.push_back(id);
     }
 
-    // 销户时从客户名下解绑并移除指定账号；找不到返回 false
     bool removeAccount(long long id);
 
     const std::vector<long long> &getAccountIds() const {

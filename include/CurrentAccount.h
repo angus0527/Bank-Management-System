@@ -3,13 +3,12 @@
 
 #include "Account.h"
 
-// 活期储蓄账户：本金 * 年利率 * 天数 / 360，手动“结息”触发
 class CurrentAccount : public Account {
-    double rate;           // 年利率（如 0.0035 表示 0.35%）
+    double rate;           // 年利率
     Date lastSettleDate;   // 上次结息日
 
 public:
-    explicit CurrentAccount(long long id, long long ownerId, double initialBalance,
+    CurrentAccount(long long id, long long ownerId, double initialBalance,
                             const Date &openDate, double rate = 0.0035);
 
     double calcInterest(const Date &today) const override;

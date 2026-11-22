@@ -3,10 +3,9 @@
 
 #include "Account.h"
 
-// 信用账户：支持信用额度内透支消费、欠款按日计息（默认 0.0005 即 0.05%/日）、还款冲抵欠款
 class CreditAccount : public Account {
-    double creditLimit;    // 信用额度（元）
-    double dailyRate;      // 日利率（如 0.0005 表示 0.05%/日）
+    double creditLimit;    // 信用额度
+    double dailyRate;      // 日利率
     Date lastSettleDate;   // 上次计息日
 
 public:

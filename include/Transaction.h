@@ -7,15 +7,15 @@ enum class TransactionType {
     DEP = 1, WDR = 2, TRF = 3, INT = 4 // 存款，取款，转账，结息
 };
 
-// 一条交易流水（金额、快照单位为“元”；账号 0 表示“无”）
+
 class Transaction {
     long long id;
     std::string datetime;         // "2026-10-29 19:00:05"
-    TransactionType type;
-    long long fromAccountId;      // 付款账号（无则 0）
-    long long toAccountId;        // 收款账号（无则 0）
-    double amount;                // 金额（元）
-    double balanceSnapshot;       // 交易后余额快照（元）
+    TransactionType type;         //DEP = 1, WDR = 2, TRF = 3, INT = 4  存款，取款，转账，结息
+    long long fromAccountId;      // 付款账号（0表示没有）
+    long long toAccountId;        // 收款账号（0表示没有）
+    double amount;                // 金额
+    double balanceSnapshot;       // 交易后余额
     std::string remark;
 
 public:
@@ -23,7 +23,6 @@ public:
                 long long fromAccountId, long long toAccountId, double amount,
                 double balanceSnapshot, std::string remark);
 
-    // "T|流水号|时间|DEP|付款账号|收款账号|金额(元)|余额快照(元)|备注"
     std::string serialize() const;
 
     void display() const;

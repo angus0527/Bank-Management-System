@@ -1,6 +1,6 @@
 #include "../include/User.h"
 
-// 对密码逐字节与固定掩码 0x5A 做异或混淆，避免明文密码直接存盘
+// 密码加密
 std::string User::encryptPassword(const std::string &plain) {
     std::string result = plain;
     for (char &c : result) {
@@ -14,12 +14,12 @@ User::User(long long id, const std::string &name, const std::string &password)
     : id(id), name(name), password(password) {
 }
 
-// 将输入的明文同样混淆后，与内部保存的密文比对
+// 验证密码
 bool User::verifyPassword(const std::string &plainPassword) const {
     return this->password == encryptPassword(plainPassword);
 }
 
-// 修改密码：把新明文混淆后覆盖保存
+// 修改密码
 void User::changePassword(const std::string &newPlainPassword) {
     this->password = encryptPassword(newPlainPassword);
 }
@@ -28,7 +28,7 @@ Admin::Admin(long long id, const std::string &name, const std::string &password)
     : User(id, name, password) {
 }
 
-// 序列化管理员为单行文本（电话占位为 0000）
+// 转为string保存data
 std::string Admin::serialize() const {
     return "U|" + std::to_string(id) + "|A|" + name + "|" + password + "|0000";
 }
@@ -37,7 +37,7 @@ Customer::Customer(long long id, const std::string &name, const std::string &pas
     : User(id, name, password), phoneNumber(phoneNumber) {
 }
 
-// 序列化储户为单行文本
+// 转为string保存data
 std::string Customer::serialize() const {
     return "U|" + std::to_string(id) + "|C|" + name + "|" + password + "|" + phoneNumber;
 }

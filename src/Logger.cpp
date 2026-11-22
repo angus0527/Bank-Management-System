@@ -7,7 +7,7 @@
 
 std::string Logger::path = "data/logs.txt";
 
-// 写入一条审计日志：先补全父目录防止写文件失败，再以追加模式写入时间戳和事件
+// 记一条日志
 void Logger::log(const std::string &message) {
     std::filesystem::path p(path);
     if (p.has_parent_path()) {
@@ -17,7 +17,7 @@ void Logger::log(const std::string &message) {
     out << "[" << Date::nowDateTime() << "] " << message << "\n";
 }
 
-// 按行读出 logs.txt 中的全部有效日志内容
+// 拿所有日志
 std::vector<std::string> Logger::getAllLogs() {
     std::ifstream in(path);
     std::vector<std::string> logs;
@@ -30,7 +30,7 @@ std::vector<std::string> Logger::getAllLogs() {
     return logs;
 }
 
-// 清空日志文件
+// 清空日志
 void Logger::clearAllLogs() {
     std::ofstream out(path, std::ios::trunc);
 }

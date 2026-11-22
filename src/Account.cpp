@@ -3,13 +3,12 @@
 #include <cmath>
 #include <iomanip>
 #include <sstream>
-//四舍入伍
-// 将金额四舍五入保留两位小数（精确到分）
+// 保留两位小数的辅助函数
 double round2(double value) {
     return std::round(value * 100.0) / 100.0;
 }
 
-// 把金额（元）格式化成固定两位小数字符串（如 1000.30）
+// 金额to string
 std::string formatMoney(double yuan) {
     if (std::abs(yuan) < 0.005) {
         return "0.00";
@@ -43,7 +42,7 @@ std::string Account::getStatusString() const {
     }
 }
 
-// 存款：校验金额与状态正常后增加余额
+// 存款
 bool Account::deposit(double amount) {
     amount = round2(amount);
     if (amount <= 0.0) {
@@ -58,7 +57,7 @@ bool Account::deposit(double amount) {
     return true;
 }
 
-// 取款：校验金额、状态和余额是否充足后扣减余额
+// 取款
 bool Account::withdraw(double amount) {
     amount = round2(amount);
     if (amount <= 0.0) {
@@ -78,7 +77,7 @@ bool Account::withdraw(double amount) {
     return true;
 }
 
-// 打印账户公共基本信息
+// 控制台展示信息
 void Account::displayInfo() const {
     std::cout << "----------------------------------------\n";
     std::cout << "【账号】: " << accountId << "\n";
@@ -116,7 +115,7 @@ bool Account::unfreeze() {
     return true;
 }
 
-// 销户：余额清零时才允许标记为已销户
+// 销户
 bool Account::closeAccount() {
     if (std::abs(balance) > 0.005) {
         std::cout << "操作失败：账户尚有余额 " << formatMoney(balance) << " 元，禁止销户。\n";

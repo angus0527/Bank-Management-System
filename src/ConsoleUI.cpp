@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-// 将交易类型枚举转为中文名称（导出 CSV 用）
+// 将交易类型枚举转为中文名称
 std::string txTypeName(TransactionType t) {
     if (t == TransactionType::DEP) return "存款";
     if (t == TransactionType::WDR) return "取款";
@@ -11,7 +11,7 @@ std::string txTypeName(TransactionType t) {
     return "结息";
 }
 
-// 将账户类型枚举转为中文名称（管理员总览用）
+// 将账户类型枚举转为中文名称
 std::string accTypeName(AccountType t) {
     if (t == AccountType::SAVINGS) return "活期";
     if (t == AccountType::FIXED)   return "定期";
@@ -26,7 +26,7 @@ bool hasAccount(const Customer *cust, long long aid) {
     return false;
 }
 
-// 读取流水查询条件（交易类型、起始日期、结束日期），格式有误返回 false
+// 读取流水查询条件（交易类型、起始日期、结束日期）
 bool readTxFilter(int &typeFilter, std::string &startD, std::string &endD) {
     std::cout << "按类型筛选 (0=全部 1=存款 2=取款 3=转账 4=结息): ";
     std::cin >> typeFilter;
@@ -43,7 +43,7 @@ bool readTxFilter(int &typeFilter, std::string &startD, std::string &endD) {
     return true;
 }
 
-// 客户查询交易流水（只显示本人名下账户相关的流水）
+// 客户查询交易流水
 void showCustomerTransactions(const Bank &bank, const Customer *cust, long long accId) {
     int typeFilter = 0;
     std::string startD, endD;
@@ -62,7 +62,7 @@ void showCustomerTransactions(const Bank &bank, const Customer *cust, long long 
     }
 }
 
-// 管理员查询交易流水（可查看全行或指定账号的所有流水）
+// 管理员查询交易流水
 void showAdminTransactions(const Bank &bank, long long accId) {
     int typeFilter = 0;
     std::string startD, endD;

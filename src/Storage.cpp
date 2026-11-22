@@ -177,7 +177,7 @@ void TextFileStorage::loadTransactions(Bank &bank) {
     }
 }
 
-// 全量持久化：自动创建缺失的父目录，依次保存用户、账户、流水及全行基准利率
+// 将 Bank 当前的信息全部存入data
 void TextFileStorage::save(const Bank &bank) {
     std::filesystem::path p(usersPath);
     if (p.has_parent_path()) {
@@ -197,7 +197,7 @@ void TextFileStorage::save(const Bank &bank) {
     }
 }
 
-// 全量装载：先恢复基准利率配置，再依次恢复用户、账户与流水（顺序不可颠倒）
+// 从txt读取信息
 void TextFileStorage::load(Bank &bank) {
     std::ifstream rIn(ratesPath);
     if (rIn.is_open()) {

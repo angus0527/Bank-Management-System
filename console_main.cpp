@@ -22,7 +22,7 @@ static void customerMenu(Bank &bank, Customer *cust) {
         std::cout << "1. 查看我的账户        2. 存款 / 信用还款\n";
         std::cout << "3. 取款 / 定期支取     4. 转账\n";
         std::cout << "5. 申请开户            6. 账户结息\n";
-        std::cout << "7. 查询交易流水        8. 修改资料 / 改密码\n";
+        std::cout << "7. 查询交易流水        8. 修改资料 \n";
         std::cout << "9. 账户销户            10. 导出对账单\n";
         std::cout << "0. 退出登录\n";
         std::cout << "请选择: ";

@@ -13,24 +13,23 @@ enum class AccountStatus {
 };
 
 enum class AccountType {
-    SAVINGS = 1, // 活期储蓄账户
-    CREDIT = 2,  // 信用卡/透支账户
-    FIXED = 3    // 定期存款账户
+    SAVINGS = 1, // 储蓄卡
+    CREDIT = 2,  // 信用卡
+    FIXED = 3    // 定期
 };
 
-// 四舍五入保留两位小数（到分）
+// 保留两位小数的辅助函数
 double round2(double value);
 
-// 金额（元）→ "1234.56" 显示字符串
+// 金额to string
 std::string formatMoney(double yuan);
 
-// 账户抽象基类（金额单位统一为“元”）
 class Account {
 protected:
     long long accountId;   // 账号
-    long long ownerId;     // 所属用户 id
+    long long ownerId;     // 用户 id
     double balance;        // 余额（元）
-    AccountStatus status;  // 状态: 正常/冻结/销户
+    AccountStatus status;  // 状态
     Date openDate;         // 开户日期
 
 public:
@@ -38,29 +37,31 @@ public:
 
     virtual ~Account() = default;
 
-    // 存款/取款：成功返回 true，失败输出提示并返回 false
+    // 存款
     virtual bool deposit(double amount);
-
+    //取款
     virtual bool withdraw(double amount);
 
-    // 计算截至 today 应计利息（元），不改余额；各账户类型多态实现
+    // 计算到 today 利息
     virtual double calcInterest(const Date &today) const = 0;
 
-    // 结息：把应计利息并入余额，返回本次利息（元）
+    // 结息，把利息计入余额，调用上面的calcInterest
     virtual double settleInterest(const Date &today) = 0;
 
+    //控制台展示信息
     virtual void displayInfo() const;
+
 
     virtual AccountType getAccountType() const = 0;
 
-    // 将账户完整属性格式化为单行文本，用于保存到 accounts.txt
+    // 将账户信息转为单行的string，保存到 accounts.txt
     virtual std::string serialize() const = 0;
 
     bool freeze();
 
     bool unfreeze();
 
-    // 销户（要求余额为 0）
+    // 销户
     bool closeAccount();
 
     long long getAccountId() const { return accountId; }
@@ -77,7 +78,6 @@ public:
 
     bool isNormal() const { return status == AccountStatus::NORMAL; }
 
-    // 供 storage 层读档与内部更新使用
     void setStatus(AccountStatus newStatus) { status = newStatus; }
 
     void setBalance(double newBalance) { balance = round2(newBalance); }

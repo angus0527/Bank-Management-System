@@ -3,11 +3,11 @@
 
 #include "Account.h"
 
-// 定期存款账户：支持 3 / 12 / 36 个月整存整取，提前支取按活期利率计息
+
 class FixedAccount : public Account {
-    int termMonths;        // 存期（3、12 或 36 个月）
-    double rate;           // 定期年利率（如 0.0175 表示 1.75%）
-    double currentRate;    // 提前支取用的活期年利率（如 0.0035 表示 0.35%）
+    int termMonths;        // 存期（3,12或36个月）
+    double rate;           // 定期年利率
+    double currentRate;    // 提前支取的活期年利率
     Date maturityDate;     // 到期日期
     bool autoRenew;        // 到期是否自动转存
 
