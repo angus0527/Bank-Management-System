@@ -9,7 +9,6 @@ std::string User::encryptPassword(const std::string &plain) {
     return result;
 }
 
-// 基类构造：统一接收并保存已加密的密码密文
 User::User(long long id, const std::string &name, const std::string &password)
     : id(id), name(name), password(password) {
 }
@@ -42,7 +41,7 @@ std::string Customer::serialize() const {
     return "U|" + std::to_string(id) + "|C|" + name + "|" + password + "|" + phoneNumber;
 }
 
-// 顺序查找客户持卡列表，命中目标账号后将其移除，成功返回 true
+//删除账户
 bool Customer::removeAccount(long long id) {
     for (auto it = accountId.begin(); it != accountId.end(); it++) {
         if (*it == id) {

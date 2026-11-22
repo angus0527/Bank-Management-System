@@ -9,7 +9,7 @@ int typeToInt(TransactionType type) {
     return static_cast<int>(type);
 }
 
-// 构造一条交易流水记录
+//(流水id，日期，流水类型，转出账户，转入账户，数额，流水快照，注释)
 Transaction::Transaction(long long id, std::string datetime, TransactionType type,
                          long long fromAccountId, long long toAccountId, double amount,
                          double balanceSnapshot, std::string remark)
@@ -18,8 +18,8 @@ Transaction::Transaction(long long id, std::string datetime, TransactionType typ
       remark(std::move(remark)) {
 }
 
-// 将交易类型枚举转为存盘用的 3 字母英文码
-std::string Transaction::typeCode(TransactionType type) {
+// 将交易类型枚举转为string
+std::string Transaction::typeToCode(TransactionType type) {
     switch (type) {
         case TransactionType::DEP:
             return "DEP";
@@ -33,7 +33,7 @@ std::string Transaction::typeCode(TransactionType type) {
     return "???";
 }
 
-// 将存盘的英文类型码还原为交易类型枚举
+// 将string还原为交易类型枚举
 TransactionType Transaction::typeFromCode(const std::string &code) {
     if (code == "DEP") return TransactionType::DEP;
     if (code == "WDR") return TransactionType::WDR;
@@ -44,7 +44,7 @@ TransactionType Transaction::typeFromCode(const std::string &code) {
 
 // T(流水)|流水号|时间|类型码(DEP存款/WDR取款/TRF转账/INT结息)|付款账号|收款账号|金额|交易后余额|备注
 std::string Transaction::serialize() const {
-    return "T|" + std::to_string(id) + "|" + datetime + "|" + typeCode(type) + "|" +
+    return "T|" + std::to_string(id) + "|" + datetime + "|" + typeToCode(type) + "|" +
            std::to_string(fromAccountId) + "|" + std::to_string(toAccountId) + "|" +
            formatMoney(amount) + "|" + formatMoney(balanceSnapshot) + "|" + remark;
 }

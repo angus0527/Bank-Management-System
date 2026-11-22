@@ -95,7 +95,6 @@ public:
     Account *findAccount(long long accountId);
     User *findUser(long long userId);
 
-    // storage 读写辅助接口
     bool addUser(std::unique_ptr<User> user);
     void addAccount(std::unique_ptr<Account> account);
     void addTransaction(const Transaction &t);

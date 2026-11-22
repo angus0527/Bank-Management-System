@@ -424,14 +424,14 @@ std::vector<const Transaction *> Bank::queryTransactions(long long accountId, in
     return result;
 }
 
-// 按账号查找账户指针，找不到返回 nullptr
+// 按账户id查找账户
 Account *Bank::findAccount(long long accountId) {
     auto it = accounts.find(accountId);
     if (it == accounts.end()) return nullptr;
     return it->second.get();
 }
 
-// 按用户 ID 查找用户指针，找不到返回 nullptr
+// 按用户id查找用户
 User *Bank::findUser(long long userId) {
     auto it = users.find(userId);
     if (it == users.end()) return nullptr;
@@ -445,7 +445,7 @@ void Bank::recordTx(TransactionType type, long long fromId, long long toId, doub
                                        amount, balanceSnapshot, remark));
 }
 
-// 装载用户对象并顺延下一个可用用户 ID（读档用）
+
 bool Bank::addUser(std::unique_ptr<User> user) {
     long long id = user->getId();
     if (users.count(id) != 0) {
@@ -457,13 +457,13 @@ bool Bank::addUser(std::unique_ptr<User> user) {
     return true;
 }
 
-// 装载账户对象（读档用）
+
 void Bank::addAccount(std::unique_ptr<Account> account) {
     long long id = account->getAccountId();
     accounts[id] = std::move(account);
 }
 
-// 装载流水记录并顺延下一个可用流水号（读档用）
+
 void Bank::addTransaction(const Transaction &t) {
     if (t.getId() >= nextTransactionId) nextTransactionId = t.getId() + 1;
     transactions.push_back(t);

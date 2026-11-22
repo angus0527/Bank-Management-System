@@ -3,7 +3,7 @@
 #include <cmath>
 #include <sstream>
 
-// 构造定期账户：校验存期（仅支持 3/12/36 个月）并计算到期日
+//(账户id，用户id，初始存款，开户日期，存多久，定期年利率，是否自动转纯，活期年利率）
 FixedAccount::FixedAccount(long long id, long long ownerId, double initialBalance,
                            const Date &openDate, int termMonths, double rate,
                            bool autoRenew, double currentRate)
@@ -18,13 +18,13 @@ FixedAccount::FixedAccount(long long id, long long ownerId, double initialBalanc
     }
 }
 
-// 定期账户禁止中途追加存款，直接返回 false
+// 定期账户禁止中途追加存款
 bool FixedAccount::deposit(double /*amount*/) {
     std::cout << "操作失败：定期账户不支持中途追加存款。\n";
     return false;
 }
 
-// 定期支取：必须一次性全额取出，取出后余额归零
+// 定期取款，必须一次性全额取出
 bool FixedAccount::withdraw(double amount) {
     amount = round2(amount);
     if (amount <= 0.0) {
@@ -43,9 +43,10 @@ bool FixedAccount::withdraw(double amount) {
     return true;
 }
 
-// 多态计息：到期按 本金 * 定期年利率 * 月数 / 12；未到期提前支取按 本金 * 活期年利率 * 天数 / 360
+
 double FixedAccount::calcInterest(const Date &today) const {
     if (balance <= 0.0 || status == AccountStatus::CLOSED) return 0.0;
+    //如果今天在过了结息日期就按定期年利率结息
     if (today >= maturityDate) {
         return round2(balance * rate * static_cast<double>(termMonths) / 12.0);
     }
@@ -88,7 +89,6 @@ std::string FixedAccount::serialize() const {
     return oss.str();
 }
 
-// 打印定期账户的存期、到期日及是否自动转存
 void FixedAccount::displayInfo() const {
     Account::displayInfo();
     std::cout << "【类型】: 定期（" << termMonths << "个月，到期日 " << maturityDate.toString()

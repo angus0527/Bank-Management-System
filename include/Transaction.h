@@ -30,7 +30,7 @@ public:
 
     void display() const;
 
-    static std::string typeCode(TransactionType type);
+    static std::string typeToCode(TransactionType type);
 
     static TransactionType typeFromCode(const std::string &code);
 

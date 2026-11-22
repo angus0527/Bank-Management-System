@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <vector>
-
+//一些控制台用的辅助函数
 // 将交易类型枚举转为中文名称
 std::string txTypeName(TransactionType t) {
     if (t == TransactionType::DEP) return "存款";
@@ -26,7 +26,7 @@ bool hasAccount(const Customer *cust, long long aid) {
     return false;
 }
 
-// 读取流水查询条件（交易类型、起始日期、结束日期）
+// 读取流水查询条件
 bool readTxFilter(int &typeFilter, std::string &startD, std::string &endD) {
     std::cout << "按类型筛选 (0=全部 1=存款 2=取款 3=转账 4=结息): ";
     std::cin >> typeFilter;
@@ -51,6 +51,7 @@ void showCustomerTransactions(const Bank &bank, const Customer *cust, long long 
 
     std::vector<const Transaction *> list;
     for (const Transaction *t : bank.queryTransactions(accId, typeFilter, startD, endD)) {
+        //用户要么是转账方要么是收款方
         if (hasAccount(cust, t->getFromAccountId()) || hasAccount(cust, t->getToAccountId())) {
             list.push_back(t);
         }

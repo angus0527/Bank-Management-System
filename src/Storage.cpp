@@ -177,7 +177,7 @@ void TextFileStorage::loadTransactions(Bank &bank) {
     }
 }
 
-// 保存五档基准利率到 rates.txt
+// 保存利率到 rates.txt
 void TextFileStorage::saveRates(const Bank &bank) const {
     std::ofstream rOut(ratesPath);
     if (!rOut.is_open()) return;
@@ -188,7 +188,7 @@ void TextFileStorage::saveRates(const Bank &bank) const {
          << bank.getCreditDailyRate() << "\n";
 }
 
-// 从 rates.txt 读取五档基准利率
+// 从 rates.txt 读取利率
 void TextFileStorage::loadRates(Bank &bank) {
     std::ifstream rIn(ratesPath);
     if (!rIn.is_open()) return;

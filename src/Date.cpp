@@ -4,7 +4,7 @@
 #include <iostream>
 #include <sstream>
 
-// 两位整数补零（如 5 -> "05"），直接拼接字符串避免 snprintf 缓冲区操作
+//5->05
 static std::string twoDigits(int v) {
     return (v < 10 ? "0" : "") + std::to_string(v);
 }
@@ -14,7 +14,7 @@ bool Date::isLeap(int y) {
     return (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
 }
 
-// 返回指定年月的天数（月份不在 1~12 返回 0）
+// 返回指定年月的天数
 int Date::daysInMonth(int y, int m) {
     static const int table[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
     if (m < 1 || m > 12) {
@@ -26,7 +26,7 @@ int Date::daysInMonth(int y, int m) {
     return table[m - 1];
 }
 
-// 构造日期对象：校验合法性，非法则提示并重置为 1900-01-01
+
 Date::Date(int y, int m, int d) : year(y), month(m), day(d) {
     int maxDay = daysInMonth(y, m);
     if (y < 1900 || y > 9999 || maxDay == 0 || d < 1 || d > maxDay) {
@@ -50,13 +50,14 @@ long long Date::toSerial() const {
     return total;
 }
 
-// 按月/天进退位计算加减 n 天后的新日期（支持正负天数）
+
 Date Date::addDays(long long n) const {
     int y = year;
     int m = month;
     int d = day;
     while (n > 0) {
         int dim = daysInMonth(y, m);
+        //当前日期加上n后小于当前月的天数
         if (d + n <= dim) {
             d += static_cast<int>(n);
             n = 0;
@@ -71,6 +72,7 @@ Date Date::addDays(long long n) const {
         }
     }
     while (n < 0) {
+        //说明减去n后还在当前月份
         if (d + n >= 1) {
             d += static_cast<int>(n);
             n = 0;
@@ -82,12 +84,13 @@ Date Date::addDays(long long n) const {
                 y--;
             }
             d = daysInMonth(y, m);
+            //退回上一个月最后一天
         }
     }
     return Date(y, m, d);
 }
 
-// 返回加上 n 个月后的日期（月末自动顺延收敛，如 1月31日+1月 -> 2月28日）
+//n可以是负数
 Date Date::addMonths(int n) const {
     int y = year;
     int m = month + n;
@@ -100,7 +103,7 @@ Date Date::addMonths(int n) const {
         y--;
     }
     int maxDay = daysInMonth(y, m);
-    int d = (day > maxDay) ? maxDay : day; // 月末顺延收敛（如 1月31日+1月 -> 2月28日）
+    int d = (day > maxDay) ? maxDay : day;
     return Date(y, m, d);
 }
 
@@ -111,7 +114,7 @@ Date Date::today() {
     return Date(local->tm_year + 1900, local->tm_mon + 1, local->tm_mday);
 }
 
-// 获取当前日期时间字符串（格式 YYYY-MM-DD HH:MM:SS）
+// 获取当前日期时间字符串
 std::string Date::nowDateTime() {
     std::time_t t = std::time(nullptr);
     std::tm *local = std::localtime(&t);
