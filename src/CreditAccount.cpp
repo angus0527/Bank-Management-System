@@ -2,7 +2,7 @@
 
 #include <sstream>
 
-// 信用账户构造：基类 Account 要求非负初始值；若从磁盘还原已有透支欠款（负余额），先以 0 过基类构造再恢复实际余额
+//(账户id，用户id，初始存款，开户日期，信用额度，欠款年利率）
 CreditAccount::CreditAccount(long long id, long long ownerId, double initialBalance,
                              const Date &openDate, double limit, double rate)
     : Account(id, ownerId, initialBalance >= 0.0 ? initialBalance : 0.0, openDate),
@@ -12,7 +12,7 @@ CreditAccount::CreditAccount(long long id, long long ownerId, double initialBala
     balance = round2(initialBalance);
 }
 
-// 还款 / 预存操作：直接增加余额（若原先处于透支负余额状态，相当于冲抵所欠本息）
+// 还款
 bool CreditAccount::deposit(double amount) {
     amount = round2(amount);
     if (amount <= 0.0) {
@@ -27,7 +27,7 @@ bool CreditAccount::deposit(double amount) {
     return true;
 }
 
-// 重写取款以支持额度内透支消费：当前可用额度 = 当前余额 + 信用额度
+// 取款
 bool CreditAccount::withdraw(double amount) {
     amount = round2(amount);
     if (amount <= 0.0) {
@@ -39,6 +39,7 @@ bool CreditAccount::withdraw(double amount) {
         return false;
     }
     double available = getAvailableCredit();
+    //防止浮点数误差
     if (amount > available + 0.005) {
         std::cout << "操作失败：超出可用信用额度，当前可用额度 " << formatMoney(available)
                   << " 元，尝试支出 " << formatMoney(amount) << " 元。\n";
@@ -48,7 +49,7 @@ bool CreditAccount::withdraw(double amount) {
     return true;
 }
 
-// 欠款按日计息：本金(欠款) * 日利率 * 天数
+// 欠款利息,冻结账户也会算利息
 double CreditAccount::calcInterest(const Date &today) const {
     if (status == AccountStatus::CLOSED) {
         return 0.0;
@@ -64,7 +65,7 @@ double CreditAccount::calcInterest(const Date &today) const {
     return round2(debt * dailyRate * static_cast<double>(days));
 }
 
-// 信用透支结息：算出的利息从 balance 扣除（即累计到当前欠款总额中），更新上次计息日
+// 信用透支结息
 double CreditAccount::settleInterest(const Date &today) {
     if (status == AccountStatus::CLOSED) {
         return 0.0;
@@ -75,12 +76,12 @@ double CreditAccount::settleInterest(const Date &today) {
     return interest;
 }
 
-// 返回账户类型枚举（信用账户）
+// 返回账户类型枚举
 AccountType CreditAccount::getAccountType() const {
     return AccountType::CREDIT;
 }
 
-// 序列化信用账户到 accounts.txt
+// 固定 14 列持久化格式：A|账号|X|户主id|余额|开户日|透支日利率|0|0|0|信用额度|当前欠款|上次计息日|状态
 std::string CreditAccount::serialize() const {
     std::ostringstream oss;
     oss << "A|" << accountId << "|X|" << ownerId << "|"

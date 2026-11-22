@@ -77,7 +77,7 @@ double FixedAccount::settleInterest(const Date &today) {
     return totalInterest;
 }
 
-// 将定期账户格式化为 14 列单行文本，供存盘使用
+// 固定 14 列持久化格式：A|账号|F|户主id|余额|开户日|定期年利率|存期月数|到期日|是否自动转存|0|0|活期年利率|状态
 std::string FixedAccount::serialize() const {
     std::ostringstream oss;
     oss << "A|" << accountId << "|F|" << ownerId << "|"

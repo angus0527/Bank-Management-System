@@ -28,7 +28,7 @@ Admin::Admin(long long id, const std::string &name, const std::string &password)
     : User(id, name, password) {
 }
 
-// 转为string保存data
+// 转为string保存data，格式：U|id|A|name|password|0000
 std::string Admin::serialize() const {
     return "U|" + std::to_string(id) + "|A|" + name + "|" + password + "|0000";
 }
@@ -37,7 +37,7 @@ Customer::Customer(long long id, const std::string &name, const std::string &pas
     : User(id, name, password), phoneNumber(phoneNumber) {
 }
 
-// 转为string保存data
+// 转为string保存data，格式：U|id|C|name|password|phoneNumber
 std::string Customer::serialize() const {
     return "U|" + std::to_string(id) + "|C|" + name + "|" + password + "|" + phoneNumber;
 }

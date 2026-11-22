@@ -30,7 +30,7 @@ AccountType CurrentAccount::getAccountType() const {
     return AccountType::SAVINGS;
 }
 
-// 固定 14 列持久化格式（第 13 列为上次结息日，第 14 列为账户状态）
+// 固定 14 列持久化格式：A|账号|C|户主id|余额|开户日|年利率|0|0|0|0|0|上次结息日|状态
 std::string CurrentAccount::serialize() const {
     std::ostringstream oss;
     oss << "A|" << accountId << "|C|" << ownerId << "|"
