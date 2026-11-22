@@ -81,7 +81,7 @@ AccountType CreditAccount::getAccountType() const {
     return AccountType::CREDIT;
 }
 
-// 固定 14 列持久化格式：A(账户)|账号|X(信用)|户主id|余额|开户日|透支日利率|0|0|0|信用额度|当前欠款|上次计息日|状态(1正常/2冻结/3销户)
+// A(账户)|账号|X(信用)|户主id|余额|开户日|透支日利率|0|0|0|信用额度|当前欠款|上次计息日|状态(1正常/2冻结/3销户)
 std::string CreditAccount::serialize() const {
     std::ostringstream oss;
     oss << "A|" << accountId << "|X|" << ownerId << "|"
