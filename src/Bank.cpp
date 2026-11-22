@@ -274,19 +274,6 @@ double Bank::settleInterest(long long accountId, const Date &today) {
         std::cout << "操作失败：账户已" << acc->getStatusString() << "，无法结息。\n";
         return -1.0;
     }
-    if (FixedAccount *fix = dynamic_cast<FixedAccount *>(acc)) {
-        if (fix->isAutoRenew()) {
-            double totalInterest = 0.0;
-            while (fix->getBalance() > 0.0 && today >= fix->getMaturityDate()) {
-                double interest = fix->settleInterest(today);
-                if (interest > 0.0) {
-                    totalInterest = round2(totalInterest + interest);
-                    recordTx(TransactionType::INT, 0, accountId, interest, fix->getBalance(), "定期到期自动转存结息");
-                }
-            }
-            return totalInterest;
-        }
-    }
     double interest = acc->settleInterest(today);
     if (interest > 0.0) {
         if (acc->getAccountType() == AccountType::CREDIT) {

@@ -54,14 +54,27 @@ double FixedAccount::calcInterest(const Date &today) const {
     return round2(balance * currentRate * static_cast<double>(days) / 360.0);
 }
 
-// 到期结息并顺延到下一周期；未到期不提前结息
+// 结息：未开启自动转存只结一次；开启自动转存时循环滚存全部已满期周期
 double FixedAccount::settleInterest(const Date &today) {
-    if (status == AccountStatus::CLOSED || balance <= 0.0 || today < maturityDate) return 0.0;
-    double interest = calcInterest(today);
-    balance = round2(balance + interest);
-    openDate = maturityDate;
-    maturityDate = openDate.addMonths(termMonths);
-    return interest;
+    if (status == AccountStatus::CLOSED || balance <= 0.0 || today < maturityDate) {
+        return 0.0;
+    }
+    if (!autoRenew) {
+        double interest = calcInterest(today);
+        balance = round2(balance + interest);
+        openDate = maturityDate;
+        maturityDate = openDate.addMonths(termMonths);
+        return interest;
+    }
+    double totalInterest = 0.0;
+    while (balance > 0.0 && today >= maturityDate) {
+        double interest = calcInterest(today);
+        balance = round2(balance + interest);
+        totalInterest = round2(totalInterest + interest);
+        openDate = maturityDate;
+        maturityDate = openDate.addMonths(termMonths);
+    }
+    return totalInterest;
 }
 
 // 将定期账户格式化为 14 列单行文本，供存盘使用
