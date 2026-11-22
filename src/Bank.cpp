@@ -8,7 +8,7 @@
 #include "CurrentAccount.h"
 #include "FixedAccount.h"
 
-// 随机生成不重复的 16 位银行卡号（622202 开头 + 10 位随机数）
+// 随机生成不重复的 16 位银行卡号
 long long Bank::generateAccountId() const {
     static std::mt19937_64 rng(static_cast<unsigned long long>(std::time(nullptr)));
     std::uniform_int_distribution<long long> dist(0, 9999999999LL);
@@ -456,6 +456,3 @@ void Bank::addTransaction(const Transaction &t) {
     if (t.getId() >= nextTransactionId) nextTransactionId = t.getId() + 1;
     transactions.push_back(t);
 }
-
-// 手动设置发号器起始流水号
-void Bank::setNextTransactionId(long long id) { nextTransactionId = id; }
