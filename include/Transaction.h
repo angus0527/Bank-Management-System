@@ -7,6 +7,9 @@ enum class TransactionType {
     DEP = 1, WDR = 2, TRF = 3, INT = 4 // 存款，取款，转账，结息
 };
 
+// 将交易类型枚举转为整数
+int typeToInt(TransactionType type);
+
 
 class Transaction {
     long long id;

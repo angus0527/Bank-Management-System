@@ -376,7 +376,7 @@ bool Bank::setFixedRate(int termMonths, double rate) {
     return true;
 }
 
-// 调整全行信用透支日利率，并同步到现有信用账户
+
 bool Bank::setCreditDailyRate(double rate) {
     if (rate < 0.0) {
         std::cout << "操作失败：利率不能为负。\n";
@@ -389,7 +389,6 @@ bool Bank::setCreditDailyRate(double rate) {
     return true;
 }
 
-// 按存期月数查询当前定期基准年利率
 double Bank::getFixedRate(int termMonths) const {
     if (termMonths == 3) return fixed3MRate;
     if (termMonths == 12) return fixed1YRate;
@@ -397,7 +396,6 @@ double Bank::getFixedRate(int termMonths) const {
     return 0.0;
 }
 
-// 启动读档时一次性恢复 5 档基准利率配置
 void Bank::initRates(double cur, double f3m, double f1y, double f3y, double cr) {
     currentRate = cur;
     fixed3MRate = f3m;
@@ -406,16 +404,18 @@ void Bank::initRates(double cur, double f3m, double f1y, double f3y, double cr) 
     creditDailyRate = cr;
 }
 
-// 按账号、类型、日期范围过滤流水（"YYYY-MM-DD" 字符串直接按字典序比较）
+// accountid:0表示查所有账户；typefilter0表示查询所有流水 DEP = 1, WDR = 2, TRF = 3, INT = 4
 std::vector<const Transaction *> Bank::queryTransactions(long long accountId, int typeFilter,
                                                          const std::string &startDate,
                                                          const std::string &endDate) const {
     std::vector<const Transaction *> result;
     for (const Transaction &t : transactions) {
+        //检查id是否对应
         if (accountId != 0 && t.getFromAccountId() != accountId && t.getToAccountId() != accountId) continue;
-        //判断交易流水类型
-        if (typeFilter != 0 && static_cast<int>(t.getType()) != typeFilter) continue;
-        //判断日期是否在内
+        //检查类型是否对应
+        if (typeFilter != 0 && typeToInt(t.getType()) != typeFilter) continue;
+
+        //看日期是否在内
         std::string txDay = t.getDatetime().substr(0, 10);
         if (!startDate.empty() && txDay < startDate) continue;
         if (!endDate.empty() && txDay > endDate) continue;

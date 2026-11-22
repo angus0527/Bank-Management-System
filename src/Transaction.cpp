@@ -4,6 +4,11 @@
 
 #include "../include/Account.h"
 
+// 将交易类型枚举转为整数
+int typeToInt(TransactionType type) {
+    return static_cast<int>(type);
+}
+
 // 构造一条交易流水记录
 Transaction::Transaction(long long id, std::string datetime, TransactionType type,
                          long long fromAccountId, long long toAccountId, double amount,
@@ -47,7 +52,7 @@ std::string Transaction::serialize() const {
 // 在控制台打印本条交易流水详情
 void Transaction::display() const {
     static const char *names[] = {"存款", "取款", "转账", "结息"};
-    std::cout << "[流水#" << id << "] " << datetime << " " << names[static_cast<int>(type) - 1]
+    std::cout << "[流水#" << id << "] " << datetime << " " << names[typeToInt(type) - 1]
               << " " << formatMoney(amount) << " 元";
     if (type == TransactionType::TRF) {
         std::cout << "（" << fromAccountId << " → " << toAccountId << "）";
