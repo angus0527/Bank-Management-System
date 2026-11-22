@@ -89,7 +89,7 @@ bool Bank::updateCustomerPhone(long long userId, const std::string &newPhone) {
     return true;
 }
 
-// 校验原密码后修改登录密码
+// 修改密码
 bool Bank::changeUserPassword(long long userId, const std::string &oldPassword, const std::string &newPassword) {
     User *user = findUser(userId);
     if (user == nullptr) {
@@ -108,7 +108,7 @@ bool Bank::changeUserPassword(long long userId, const std::string &oldPassword, 
     return true;
 }
 
-// 开立活期账户并绑定到客户名下，成功返回新账号
+
 long long Bank::openCurrentAccount(long long ownerId, double initialDeposit, const Date &openDate) {
     Customer *customer = findCustomer(ownerId);
     if (customer == nullptr) return -1;
@@ -119,6 +119,7 @@ long long Bank::openCurrentAccount(long long ownerId, double initialDeposit, con
     }
     long long id = generateAccountId();
     auto account = std::make_unique<CurrentAccount>(id, ownerId, initialDeposit, openDate, currentRate);
+    //如果0元开户就不记存款流水
     if (initialDeposit > 0.0) {
         recordTx(TransactionType::DEP, 0, id, initialDeposit, initialDeposit, "开户存入");
     }
@@ -127,7 +128,7 @@ long long Bank::openCurrentAccount(long long ownerId, double initialDeposit, con
     return id;
 }
 
-// 开立定期账户（支持 3/12/36 个月），成功返回新账号
+
 long long Bank::openFixedAccount(long long ownerId, double initialDeposit, int termMonths,
                                  bool autoRenew, const Date &openDate) {
     Customer *customer = findCustomer(ownerId);
@@ -147,7 +148,7 @@ long long Bank::openFixedAccount(long long ownerId, double initialDeposit, int t
     return id;
 }
 
-// 开立信用账户，设置信用额度并绑定客户，成功返回新账号
+
 long long Bank::openCreditAccount(long long ownerId, double creditLimit, const Date &openDate) {
     Customer *customer = findCustomer(ownerId);
     if (customer == nullptr) return -1;
@@ -163,7 +164,7 @@ long long Bank::openCreditAccount(long long ownerId, double creditLimit, const D
     return id;
 }
 
-// 存款（信用账户为还款），入账并记流水
+// 存款
 bool Bank::deposit(long long accountId, double amount, const std::string &remark) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -176,7 +177,7 @@ bool Bank::deposit(long long accountId, double amount, const std::string &remark
     return true;
 }
 
-// 取款（信用账户为透支消费），扣款并记流水
+// 取款
 bool Bank::withdraw(long long accountId, double amount, const std::string &remark) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -189,7 +190,7 @@ bool Bank::withdraw(long long accountId, double amount, const std::string &remar
     return true;
 }
 
-// 定期全额支取：先按当前日期结算利息并入本金，再一次性取出全部本息
+//因为定期账户取款必须一次取完，所以与上面的函数区分
 double Bank::withdrawFixed(long long accountId, const Date &today) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -210,6 +211,10 @@ double Bank::withdrawFixed(long long accountId, const Date &today) {
         return -1.0;
     }
 
+    if (fixed->isAutoRenew() && today >= fixed->getMaturityDate()) {
+        settleInterest(accountId, today);
+    }
+
     double interest = fixed->calcInterest(today);
     if (interest > 0.0) {
         fixed->setBalance(fixed->getBalance() + interest);
@@ -222,7 +227,7 @@ double Bank::withdrawFixed(long long accountId, const Date &today) {
     return payout;
 }
 
-// 转账：先校验双方状态与账户类型，再通过多态 withdraw/deposit 扣款和入账
+
 bool Bank::transfer(long long fromAccountId, long long toAccountId, double amount, const std::string &remark) {
     amount = round2(amount);
     if (fromAccountId == toAccountId) {
@@ -244,7 +249,7 @@ bool Bank::transfer(long long fromAccountId, long long toAccountId, double amoun
         return false;
     }
     if (!from->isNormal() || !to->isNormal()) {
-        std::cout << "操作失败：转账涉及的账户状态异常（已冻结或销户）。\n";
+        std::cout << "操作失败：转账涉及的账户状态异常。\n";
         return false;
     }
     if (from->getAccountType() == AccountType::FIXED || to->getAccountType() == AccountType::FIXED) {
@@ -258,7 +263,7 @@ bool Bank::transfer(long long fromAccountId, long long toAccountId, double amoun
     return true;
 }
 
-// 对指定账户结算截至 today 的利息并记录结息流水（开启自动转存的定期账户会连续转存到最新周期）
+
 double Bank::settleInterest(long long accountId, const Date &today) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -293,7 +298,7 @@ double Bank::settleInterest(long long accountId, const Date &today) {
     return interest;
 }
 
-// 批量处理全行已到期且开启自动转存的定期账户，返回转存账户数
+
 int Bank::processMaturityRollovers(const Date &today) {
     int count = 0;
     for (const auto &[aid, acc] : accounts) {
