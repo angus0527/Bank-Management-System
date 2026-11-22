@@ -177,6 +177,31 @@ void TextFileStorage::loadTransactions(Bank &bank) {
     }
 }
 
+// 保存五档基准利率到 rates.txt
+void TextFileStorage::saveRates(const Bank &bank) const {
+    std::ofstream rOut(ratesPath);
+    if (!rOut.is_open()) return;
+    rOut << "R|" << bank.getCurrentRate() << "|"
+         << bank.getFixedRate(3) << "|"
+         << bank.getFixedRate(12) << "|"
+         << bank.getFixedRate(36) << "|"
+         << bank.getCreditDailyRate() << "\n";
+}
+
+// 从 rates.txt 读取五档基准利率
+void TextFileStorage::loadRates(Bank &bank) {
+    std::ifstream rIn(ratesPath);
+    if (!rIn.is_open()) return;
+    std::string line;
+    if (std::getline(rIn, line)) {
+        auto f = split(line);
+        if (f.size() >= 6 && f[0] == "R") {
+            bank.initRates(std::stod(f[1]), std::stod(f[2]), std::stod(f[3]),
+                           std::stod(f[4]), std::stod(f[5]));
+        }
+    }
+}
+
 // 将 Bank 当前的信息全部存入data
 void TextFileStorage::save(const Bank &bank) {
     std::filesystem::path p(usersPath);
@@ -186,30 +211,12 @@ void TextFileStorage::save(const Bank &bank) {
     saveUsers(bank);
     saveAccounts(bank);
     saveTransactions(bank);
-
-    std::ofstream rOut(ratesPath);
-    if (rOut.is_open()) {
-        rOut << "R|" << bank.getCurrentRate() << "|"
-             << bank.getFixedRate(3) << "|"
-             << bank.getFixedRate(12) << "|"
-             << bank.getFixedRate(36) << "|"
-             << bank.getCreditDailyRate() << "\n";
-    }
+    saveRates(bank);
 }
 
 // 从txt读取信息
 void TextFileStorage::load(Bank &bank) {
-    std::ifstream rIn(ratesPath);
-    if (rIn.is_open()) {
-        std::string line;
-        if (std::getline(rIn, line)) {
-            auto f = split(line);
-            if (f.size() >= 6 && f[0] == "R") {
-                bank.initRates(std::stod(f[1]), std::stod(f[2]), std::stod(f[3]),
-                               std::stod(f[4]), std::stod(f[5]));
-            }
-        }
-    }
+    loadRates(bank);
     loadUsers(bank);
     loadAccounts(bank);
     loadTransactions(bank);

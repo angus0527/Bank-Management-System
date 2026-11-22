@@ -26,10 +26,12 @@ private:
     void saveUsers(const Bank &bank) const;
     void saveAccounts(const Bank &bank) const;
     void saveTransactions(const Bank &bank) const;
+    void saveRates(const Bank &bank) const;
 
     void loadUsers(Bank &bank);
     void loadAccounts(Bank &bank);
     void loadTransactions(Bank &bank);
+    void loadRates(Bank &bank);
 
 public:
     TextFileStorage(std::string usersFile = "data/users.txt",
