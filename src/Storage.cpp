@@ -10,8 +10,8 @@
 #include "CurrentAccount.h"
 #include "FixedAccount.h"
 
-// 按指定分隔符切分单行文本记录（用于解析 '|' 分隔的文本字段）
-static std::vector<std::string> split(const std::string &line, char sep) {
+// 按指定分隔符切分单行文本记录
+static std::vector<std::string> split(const std::string &line, char sep = '|') {
     std::vector<std::string> res;
     std::istringstream iss(line);
     std::string item;
@@ -21,20 +21,21 @@ static std::vector<std::string> split(const std::string &line, char sep) {
     return res;
 }
 
-// 跨工作目录路径探测：先检查当前工作目录下是否存在，若不存在（如在 cmake-build-debug 运行）则向上级目录回溯查找
+// 找path对应的文件
 static std::string resolvePath(const std::string &path) {
     if (std::filesystem::exists(path)) {
         return path;
     }
     std::filesystem::path p("..");
     p /= path;
+    //变成../path
     if (std::filesystem::exists(p)) {
         return p.string();
     }
     return path;
 }
 
-// 将文本中的状态编码还原为 AccountStatus 枚举
+// 将文本中的账户状态编码还原为枚举
 static AccountStatus parseStatusField(const std::string &s) {
     if (s == "2") return AccountStatus::FROZEN;
     if (s == "3") return AccountStatus::CLOSED;
@@ -48,7 +49,7 @@ TextFileStorage::TextFileStorage(std::string usersFile, std::string accountsFile
       transactionsPath(resolvePath(txFile)),
       ratesPath(resolvePath(ratesFile)) {}
 
-// 多态调用每个用户对象的 serialize() 方法写入 users.txt
+
 void TextFileStorage::saveUsers(const Bank &bank) const {
     std::ofstream out(usersPath);
     if (!out.is_open()) return;
@@ -58,7 +59,7 @@ void TextFileStorage::saveUsers(const Bank &bank) const {
     }
 }
 
-// 多态调用每个账户对象的 serialize() 方法写入 accounts.txt
+
 void TextFileStorage::saveAccounts(const Bank &bank) const {
     std::ofstream out(accountsPath);
     if (!out.is_open()) return;
@@ -68,7 +69,7 @@ void TextFileStorage::saveAccounts(const Bank &bank) const {
     }
 }
 
-// 顺序保存全行交易流水到 transactions.txt
+
 void TextFileStorage::saveTransactions(const Bank &bank) const {
     std::ofstream out(transactionsPath);
     if (!out.is_open()) return;
@@ -78,7 +79,7 @@ void TextFileStorage::saveTransactions(const Bank &bank) const {
     }
 }
 
-// 解析 users.txt 并按角色标识还原 Admin / Customer 对象（文件中存的本身就是加密后密文）
+
 void TextFileStorage::loadUsers(Bank &bank) {
     std::ifstream in(usersPath);
     if (!in.is_open()) return;
@@ -86,7 +87,7 @@ void TextFileStorage::loadUsers(Bank &bank) {
     std::string line;
     while (std::getline(in, line)) {
         if (line.empty()) continue;
-        auto f = split(line, '|');
+        auto f = split(line);
         if (f.size() < 6 || f[0] != "U") continue;
 
         long long id = std::stoll(f[1]);
@@ -98,7 +99,6 @@ void TextFileStorage::loadUsers(Bank &bank) {
     }
 }
 
-// 解析 accounts.txt（固定 14 列格式），按类型标识还原 C 活期 / F 定期 / X 信用账户
 void TextFileStorage::loadAccounts(Bank &bank) {
     std::ifstream in(accountsPath);
     if (!in.is_open()) return;
@@ -106,7 +106,7 @@ void TextFileStorage::loadAccounts(Bank &bank) {
     std::string line;
     while (std::getline(in, line)) {
         if (line.empty()) continue;
-        auto f = split(line, '|');
+        auto f = split(line);
         if (f.size() < 14 || f[0] != "A") continue;
 
         long long id = std::stoll(f[1]);
@@ -140,7 +140,7 @@ void TextFileStorage::loadAccounts(Bank &bank) {
             AccountStatus st = parseStatusField(f[13]);
             acc->setStatus(st);
             bank.addAccount(std::move(acc));
-            // 未销户的账号才会进所属 Customer 的持卡列表
+
             if (st != AccountStatus::CLOSED) {
                 const auto &users = bank.getUsers();
                 auto it = users.find(ownerId);
@@ -154,7 +154,7 @@ void TextFileStorage::loadAccounts(Bank &bank) {
     }
 }
 
-// 解析 transactions.txt，恢复全部历史流水记录并自动顺延流水发号器
+
 void TextFileStorage::loadTransactions(Bank &bank) {
     std::ifstream in(transactionsPath);
     if (!in.is_open()) return;
@@ -162,7 +162,7 @@ void TextFileStorage::loadTransactions(Bank &bank) {
     std::string line;
     while (std::getline(in, line)) {
         if (line.empty()) continue;
-        auto f = split(line, '|');
+        auto f = split(line);
         if (f.size() < 9 || f[0] != "T") continue;
 
         long long id = std::stoll(f[1]);
@@ -203,7 +203,7 @@ void TextFileStorage::load(Bank &bank) {
     if (rIn.is_open()) {
         std::string line;
         if (std::getline(rIn, line)) {
-            auto f = split(line, '|');
+            auto f = split(line);
             if (f.size() >= 6 && f[0] == "R") {
                 bank.initRates(std::stod(f[1]), std::stod(f[2]), std::stod(f[3]),
                                std::stod(f[4]), std::stod(f[5]));
