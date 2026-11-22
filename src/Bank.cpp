@@ -287,9 +287,10 @@ double Bank::settleInterest(long long accountId, const Date &today) {
 
 
 int Bank::processMaturityRollovers(const Date &today) {
-    int count = 0;
+    int count = 0;//记录自动转存账户数
     for (const auto &[aid, acc] : accounts) {
         FixedAccount *fix = dynamic_cast<FixedAccount *>(acc.get());
+        //条件:必须是定期账户，账户状态正常，账户开启了自动转存，账户的余额大于0
         if (!fix || !fix->isNormal() || !fix->isAutoRenew() || fix->getBalance() <= 0.0) continue;
         if (today >= fix->getMaturityDate()) {
             settleInterest(aid, today);
@@ -299,7 +300,7 @@ int Bank::processMaturityRollovers(const Date &today) {
     return count;
 }
 
-// 冻结指定账户
+// 冻结
 bool Bank::freezeAccount(long long accountId) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -309,7 +310,7 @@ bool Bank::freezeAccount(long long accountId) {
     return acc->freeze();
 }
 
-// 解冻指定账户
+// 解冻
 bool Bank::unfreezeAccount(long long accountId) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -319,7 +320,7 @@ bool Bank::unfreezeAccount(long long accountId) {
     return acc->unfreeze();
 }
 
-// 销户：清零校验通过后从客户持卡列表中移除
+// 销户
 bool Bank::closeAccount(long long accountId) {
     Account *acc = findAccount(accountId);
     if (acc == nullptr) {
@@ -333,7 +334,6 @@ bool Bank::closeAccount(long long accountId) {
     return true;
 }
 
-// 调整全行活期年利率，并同步到现有活期及定期提前支取参照利率
 bool Bank::setCurrentRate(double rate) {
     if (rate < 0.0) {
         std::cout << "操作失败：利率不能为负。\n";
@@ -347,18 +347,25 @@ bool Bank::setCurrentRate(double rate) {
     return true;
 }
 
-// 调整指定存期（3/12/36个月）的定期年利率，并同步到对应定期账户
+
 bool Bank::setFixedRate(int termMonths, double rate) {
     if (rate < 0.0) {
         std::cout << "操作失败：利率不能为负。\n";
         return false;
     }
-    if (termMonths == 3) fixed3MRate = rate;
-    else if (termMonths == 12) fixed1YRate = rate;
-    else if (termMonths == 36) fixed3YRate = rate;
-    else {
-        std::cout << "操作失败：定期档位只支持 3 / 12 / 36 个月。\n";
-        return false;
+    switch (termMonths) {
+        case 3:
+            fixed3MRate = rate;
+            break;
+        case 12:
+            fixed1YRate = rate;
+            break;
+        case 36:
+            fixed3YRate = rate;
+            break;
+        default:
+            std::cout << "操作失败：定期档位只支持 3 / 12 / 36 个月。\n";
+            return false;
     }
 
     for (const auto &[aid, acc] : accounts) {
