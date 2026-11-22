@@ -42,7 +42,7 @@ TransactionType Transaction::typeFromCode(const std::string &code) {
     return TransactionType::DEP;
 }
 
-// 格式化为单行文本保存到 transactions.txt，格式：T|流水号|时间|类型码|付款账号|收款账号|金额|交易后余额|备注
+// 格式化为单行文本保存到 transactions.txt，格式：T(流水)|流水号|时间|类型码(DEP存款/WDR取款/TRF转账/INT结息)|付款账号|收款账号|金额|交易后余额|备注
 std::string Transaction::serialize() const {
     return "T|" + std::to_string(id) + "|" + datetime + "|" + typeCode(type) + "|" +
            std::to_string(fromAccountId) + "|" + std::to_string(toAccountId) + "|" +
