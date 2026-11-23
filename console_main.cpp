@@ -66,7 +66,7 @@ static void customerMenu(Bank &bank, Customer *cust) {
                 long long aid;
                 std::cout << "账号: ";
                 std::cin >> aid;
-                if (!hasAccount(cust, aid)) {
+                if (!cust->hasAccount(aid)) {
                     std::cout << "只能操作本人名下账户。\n";
                     break;
                 }
@@ -101,7 +101,7 @@ static void customerMenu(Bank &bank, Customer *cust) {
                 std::cin >> toId;
                 std::cout << "转账金额(元): ";
                 std::cin >> amount;
-                if (!hasAccount(cust, fromId)) {
+                if (!cust->hasAccount(fromId)) {
                     std::cout << "只能从本人名下账户转出。\n";
                     break;
                 }
@@ -160,7 +160,7 @@ static void customerMenu(Bank &bank, Customer *cust) {
                 long long aid;
                 std::cout << "结息账号: ";
                 std::cin >> aid;
-                if (!hasAccount(cust, aid)) {
+                if (!cust->hasAccount(aid)) {
                     std::cout << "只能操作本人名下账户。\n";
                     break;
                 }
@@ -174,7 +174,7 @@ static void customerMenu(Bank &bank, Customer *cust) {
                 long long aid;
                 std::cout << "查询账号 (0=本人全部): ";
                 std::cin >> aid;
-                if (aid != 0 && !hasAccount(cust, aid)) {
+                if (aid != 0 && !cust->hasAccount(aid)) {
                     std::cout << "只能查询本人名下账户流水。\n";
                     break;
                 }
@@ -225,7 +225,7 @@ static void customerMenu(Bank &bank, Customer *cust) {
                 long long aid;
                 std::cout << "要销户的账号: ";
                 std::cin >> aid;
-                if (!hasAccount(cust, aid)) {
+                if (!cust->hasAccount(aid)) {
                     std::cout << "只能操作本人名下账户。\n";
                     break;
                 }
@@ -239,7 +239,7 @@ static void customerMenu(Bank &bank, Customer *cust) {
                 long long aid;
                 std::cout << "导出对账单账号: ";
                 std::cin >> aid;
-                if (!hasAccount(cust, aid)) {
+                if (!cust->hasAccount(aid)) {
                     std::cout << "只能导出本人名下账户对账单。\n";
                     break;
                 }
@@ -400,7 +400,7 @@ static void adminMenu(Bank &bank, User *admin) {
     }
 }
 
-// 程序主入口：初始化读档、自动处理到期定期转存、进入登录/注册主菜单
+
 int main() {
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);

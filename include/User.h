@@ -86,6 +86,9 @@ public:
 
     bool removeAccount(long long id);
 
+    // 判断账号是否属于当前客户
+    bool hasAccount(long long id) const;
+
     const std::vector<long long> &getAccountIds() const {
         return accountId;
     }

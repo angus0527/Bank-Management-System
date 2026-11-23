@@ -18,14 +18,6 @@ std::string accTypeName(AccountType t) {
     return "信用";
 }
 
-// 判断账号是否属于当前登录客户
-bool hasAccount(const Customer *cust, long long aid) {
-    for (long long id : cust->getAccountIds()) {
-        if (id == aid) return true;
-    }
-    return false;
-}
-
 // 读取流水查询条件
 bool readTxFilter(int &typeFilter, std::string &startD, std::string &endD) {
     std::cout << "按类型筛选 (0=全部 1=存款 2=取款 3=转账 4=结息): ";
@@ -52,7 +44,7 @@ void showCustomerTransactions(const Bank &bank, const Customer *cust, long long 
     std::vector<const Transaction *> list;
     for (const Transaction *t : bank.queryTransactions(accId, typeFilter, startD, endD)) {
         //用户要么是转账方要么是收款方
-        if (hasAccount(cust, t->getFromAccountId()) || hasAccount(cust, t->getToAccountId())) {
+        if (cust->hasAccount(t->getFromAccountId()) || cust->hasAccount(t->getToAccountId())) {
             list.push_back(t);
         }
     }

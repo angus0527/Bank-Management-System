@@ -14,9 +14,6 @@ std::string txTypeName(TransactionType t);
 // 将账户类型枚举转为中文名称
 std::string accTypeName(AccountType t);
 
-// 判断账号是否属于当前登录客户
-bool hasAccount(const Customer *cust, long long aid);
-
 // 读取流水查询条件（交易类型、起始日期、结束日期）
 bool readTxFilter(int &typeFilter, std::string &startD, std::string &endD);
 

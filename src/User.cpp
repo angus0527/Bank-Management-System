@@ -51,3 +51,11 @@ bool Customer::removeAccount(long long id) {
     }
     return false;
 }
+
+// 判断账号是否属于当前客户
+bool Customer::hasAccount(long long id) const {
+    for (long long aid : accountId) {
+        if (aid == id) return true;
+    }
+    return false;
+}
