@@ -27,10 +27,10 @@ class Bank {
 
     Customer *findCustomer(long long ownerId);
 
-    // 随机生成不重复的 16 位银行卡号
+    // 生成16位银行卡号
     long long generateAccountId() const;
 
-    // 生成并追加一条新流水
+    // 记一笔流水
     void recordTx(TransactionType type, long long fromId, long long toId, double amount,
                   double balanceSnapshot, const std::string &remark);
 
@@ -71,7 +71,7 @@ public:
     //结息
     double settleInterest(long long accountId, const Date &today = Date::today());
 
-    // 批量处理全行已到期且开启自动转存的定期账户，返回转存账户数
+    // 批量处理到期自动转存
     int processMaturityRollovers(const Date &today = Date::today());
 
     bool freezeAccount(long long accountId);

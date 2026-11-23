@@ -3,7 +3,7 @@
 #include <cmath>
 #include <sstream>
 
-//(账户id，用户id，初始存款，开户日期，存多久，定期年利率，是否自动转纯，活期年利率）
+//(账户id，用户id，初始存款，开户日期，存多久，定期年利率，是否自动转存，活期年利率)
 FixedAccount::FixedAccount(long long id, long long ownerId, double initialBalance,
                            const Date &openDate, int termMonths, double rate,
                            bool autoRenew, double currentRate)
@@ -19,7 +19,8 @@ FixedAccount::FixedAccount(long long id, long long ownerId, double initialBalanc
 }
 
 // 定期账户禁止中途追加存款
-bool FixedAccount::deposit(double /*amount*/) {
+bool FixedAccount::deposit(double amount) {
+    (void)amount;
     std::cout << "操作失败：定期账户不支持中途追加存款。\n";
     return false;
 }
@@ -55,7 +56,7 @@ double FixedAccount::calcInterest(const Date &today) const {
     return round2(balance * currentRate * static_cast<double>(days) / 360.0);
 }
 
-// 结息：未开启自动转存只结一次；开启自动转存时循环滚存全部已满期周期
+// 未开启自动转存只结一次，开启后把到期的周期都滚存完
 double FixedAccount::settleInterest(const Date &today) {
     if (status == AccountStatus::CLOSED || balance <= 0.0 || today < maturityDate) {
         return 0.0;

@@ -9,12 +9,12 @@ static std::string twoDigits(int v) {
     return (v < 10 ? "0" : "") + std::to_string(v);
 }
 
-// 判断年份 y 是否为闰年
+// 判断闰年
 bool Date::isLeap(int y) {
     return (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
 }
 
-// 返回指定年月的天数
+// 获取某月天数
 int Date::daysInMonth(int y, int m) {
     static const int table[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
     if (m < 1 || m > 12) {
@@ -37,7 +37,7 @@ Date::Date(int y, int m, int d) : year(y), month(m), day(d) {
     }
 }
 
-// 统计从 1900-01-01 到当前日期经过的天数，供 daysBetween 计算天数差
+// 计算从 1900-01-01 到现在的天数
 long long Date::toSerial() const {
     long long total = 0;
     for (int y = 1900; y < year; y++) {
@@ -107,14 +107,14 @@ Date Date::addMonths(int n) const {
     return Date(y, m, d);
 }
 
-// 获取当前系统日期
+// 获取今天日期
 Date Date::today() {
     std::time_t t = std::time(nullptr);
     std::tm *local = std::localtime(&t);
     return Date(local->tm_year + 1900, local->tm_mon + 1, local->tm_mday);
 }
 
-// 获取当前日期时间字符串
+// 获取当前日期和时间
 std::string Date::nowDateTime() {
     std::time_t t = std::time(nullptr);
     std::tm *local = std::localtime(&t);
@@ -126,7 +126,7 @@ std::string Date::nowDateTime() {
            twoDigits(local->tm_sec);
 }
 
-// 解析 "YYYY-MM-DD" 字符串为日期对象
+// 字符串转日期，如 "2026-10-29"
 Date Date::fromString(const std::string &s) {
     int y, m, d;
     char sep1, sep2;
@@ -138,12 +138,12 @@ Date Date::fromString(const std::string &s) {
     return Date(1900, 1, 1);
 }
 
-// 将日期格式化为 "YYYY-MM-DD" 字符串
+// 转为字符串
 std::string Date::toString() const {
     return std::to_string(year) + "-" + twoDigits(month) + "-" + twoDigits(day);
 }
 
-// 计算从当前日期到 other 相隔多少天（other 更早时返回负数）
+// 计算两个日期相差几天
 long long Date::daysBetween(const Date &other) const {
     return other.toSerial() - toSerial();
 }

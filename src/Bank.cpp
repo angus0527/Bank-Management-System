@@ -438,7 +438,7 @@ User *Bank::findUser(long long userId) {
     return it->second.get();
 }
 
-// 生成并追加一条新交易流水
+// 记一笔流水
 void Bank::recordTx(TransactionType type, long long fromId, long long toId, double amount,
                     double balanceSnapshot, const std::string &remark) {
     transactions.push_back(Transaction(nextTransactionId++, Date::nowDateTime(), type, fromId, toId,

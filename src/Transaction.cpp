@@ -49,7 +49,7 @@ std::string Transaction::serialize() const {
            formatMoney(amount) + "|" + formatMoney(balanceSnapshot) + "|" + remark;
 }
 
-// 在控制台打印本条交易流水详情
+// 打印流水
 void Transaction::display() const {
     static const char *names[] = {"存款", "取款", "转账", "结息"};
     std::cout << "[流水#" << id << "] " << datetime << " " << names[typeToInt(type) - 1]

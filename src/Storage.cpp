@@ -10,7 +10,7 @@
 #include "CurrentAccount.h"
 #include "FixedAccount.h"
 
-// 按指定分隔符切分单行文本记录
+// 按分隔符切分一行文本
 static std::vector<std::string> split(const std::string &line, char sep = '|') {
     std::vector<std::string> res;
     std::istringstream iss(line);
@@ -35,7 +35,7 @@ static std::string resolvePath(const std::string &path) {
     return path;
 }
 
-// 将文本中的账户状态编码还原为枚举
+// 状态字符串转枚举
 static AccountStatus parseStatusField(const std::string &s) {
     if (s == "2") return AccountStatus::FROZEN;
     if (s == "3") return AccountStatus::CLOSED;
